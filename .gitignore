@@ -1,0 +1,6 @@
+/sim
+/tests/riscv-tests/isa/generated
+/tests/software/obj
+*.bkp
+ucli.key
+.vscode
