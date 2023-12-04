@@ -7,7 +7,7 @@ k423 is a RISC-V core and SoC.
 - The core's architecture are as follows:
 
   - RV32I ISA supported
-  - 5-stage pipeline
+  - 4-stage pipeline
 
 See the core's [document](doc/k423_core.md) in `./doc` .
 

@@ -5,7 +5,7 @@
 k423 is a RISC-V core. It's features are as follows:
 
 - RV32I ISA supported
-- 5-stage pipeline
+- 4-stage pipeline
 
 Below is the architecture diagram of k423 core.
 
@@ -22,7 +22,7 @@ Below is the architecture diagram of k423 core.
 ### ID Stage
 
 - Decode instruction type, rs/rd/imm and other informations.
-- Read rs1/2 data from regfile combinationally. Select the valid data from ex_forward/mem_forward/wb_forward/regfile (has priority), and resize them when it's `STORE` instruction.
+- Read rs1/2 data from regfile combinationally. Select the valid data from ex_forward/wb_forward/regfile (has priority), and resize them when it's `STORE` instruction.
 - Write back rd data sequentially.
 
 ### EX Stage
@@ -37,19 +37,13 @@ Below is the architecture diagram of k423 core.
 
 - MDU hasn't been implemented yet.
 
-### MEM Stage
+### WB Stage
 
-- Select write back data from data memory and ALU/MDU/BJU, and resize it when it's `LOAD` instruction.
-
-  > Reading from data memory takes times. The select and resize logic can be moved to WB stage to decrease delay. But in that case, mem_forward will be invalid when instruction in ID stage needs the `LOAD` data in MEM stagenow. Pipeline blocking must be taken, which reduces efficiency.
+- Select back data from data memory or ALU/MDU/BJU, and resize it when it's `LOAD` instruction. Then write back to regfile.
 
 - Send branch informations to IF Stage.
 
-  > EX Stage can also send them, but it will make critical path longer and reduce the frequency. On the contrary, sending them in MEM Stage reduce the pipeline efficiency.
-
-### WB Stage
-
-- Write back data to regfile.
+  > EX Stage can also send them, but it will make critical path longer and reduce the frequency. On the contrary, sending them in WB Stage reduce the pipeline efficiency.
 
 ### Pipeline
 
@@ -57,7 +51,7 @@ Below is the architecture diagram of k423 core.
 
 ### PCU (Pipeline Control Unit)
 
-- When receiving `branch_taken` signal from MEM Stage, flush pipe of IF/ID, ID/EX and EX/MEM.
+- When receiving `branch_taken` signal from WB Stage, flush pipe of IF/ID, ID/EX and EX/WB.
 - When load-use harzard occurs, stall pipe of PC, IF/ID, ID/EX.
 
 ## Interface
@@ -95,28 +89,26 @@ Below is the architecture diagram of k423 core.
 
 ## RTL Files
 
-| RTL Name         | Description                                                  |
-| ---------------- | ------------------------------------------------------------ |
-| k423_core        | Top module of the core                                       |
-| k423_pcu         | Pipeline control unit                                        |
-| k423_if_stage    | IF stage                                                     |
-| k423_if_pcgen    | Generate pc                                                  |
-| k423_if_bpu      | Branch prediction unit                                       |
-| k423_if_fetch    | Fetch interface to instruction memory                        |
-| k423_id_stage    | ID stage                                                     |
-| k423_id_decode   | Decode instruction informations                              |
-| k423_id_regfile  | Regfile, forward and resize                                  |
-| k423_ex_stage    | EX stage                                                     |
-| k423_ex_alu      | ALU                                                          |
-| k423_ex_mdu      | MDU                                                          |
-| k423_ex_lsu      | Generate address of LOAD/STORE, and request interface to data memory |
-| k423_ex_bju      | Branch/Jump judgement unit                                   |
-| k423_mem_stage   | MEM stage                                                    |
-| k423_wb_stage    | WB stage                                                     |
-| k423_pipe_if_id  | Pipe between IF/ID stage                                     |
-| k423_pipe_id_ex  | Pipe between ID/EX stage                                     |
-| k423_pipe_ex_mem | Pipe between EX/MEM stage                                    |
-| k423_pipe_mem_wb | Pipe between MEM/WB stage                                    |
+| RTL Name        | Description                                                  |
+| --------------- | ------------------------------------------------------------ |
+| k423_core       | Top module of the core                                       |
+| k423_pcu        | Pipeline control unit                                        |
+| k423_if_stage   | IF stage                                                     |
+| k423_if_pcgen   | Generate pc                                                  |
+| k423_if_bpu     | Branch prediction unit                                       |
+| k423_if_fetch   | Fetch interface to instruction memory                        |
+| k423_id_stage   | ID stage                                                     |
+| k423_id_decode  | Decode instruction informations                              |
+| k423_id_regfile | Regfile, forward and resize                                  |
+| k423_ex_stage   | EX stage                                                     |
+| k423_ex_alu     | ALU                                                          |
+| k423_ex_mdu     | MDU                                                          |
+| k423_ex_lsu     | Generate address of LOAD/STORE, and request interface to data memory |
+| k423_ex_bju     | Branch/Jump judgement unit                                   |
+| k423_wb_stage   | WB stage                                                     |
+| k423_pipe_if_id | Pipe between IF/ID stage                                     |
+| k423_pipe_id_ex | Pipe between ID/EX stage                                     |
+| k423_pipe_ex_wb | Pipe between EX/WB stage                                     |
 
 ## Configuration
 
@@ -136,28 +128,28 @@ Evaluate PPA of k423 core using [yosys-sta](https://github.com/OSCPU/yosys-sta) 
 +-----------------------------+-------------+------------+------------+---------------+-------+-------+-----------+
 | Endpoint                    | Clock Group | Delay Type | Path Delay | Path Required | CPPR  | Slack | Freq(MHz) |
 +-----------------------------+-------------+------------+------------+---------------+-------+-------+-----------+
-| u_k423_pipe_ex_mem/_1680_:D | core_clock  | max        | 1.671f     | 1.961         | 0.000 | 0.289 | 584.481   |
-| u_k423_pipe_id_ex/_2067_:D  | core_clock  | max        | 1.644f     | 1.961         | 0.000 | 0.316 | 593.978   |
-| u_k423_pipe_ex_mem/_1680_:D | core_clock  | max        | 1.627r     | 1.967         | 0.000 | 0.341 | 602.719   |
-| u_k423_id_regfile/_15697_:D | core_clock  | min        | 0.160f     | 0.003         | 0.000 | 0.158 | NA        |
-| u_k423_id_regfile/_15699_:D | core_clock  | min        | 0.160f     | 0.003         | 0.000 | 0.158 | NA        |
-| u_k423_id_regfile/_15702_:D | core_clock  | min        | 0.160f     | 0.003         | 0.000 | 0.158 | NA        |
+| u_k423_pipe_id_ex/_2054_:D  | core_clock  | max        | 1.723f     | 9.961         | 0.000 | 8.237 | 567.235   |
+| u_k423_pipe_id_ex/_2058_:D  | core_clock  | max        | 1.723f     | 9.961         | 0.000 | 8.237 | 567.235   |
+| u_k423_pipe_id_ex/_2053_:D  | core_clock  | max        | 1.723f     | 9.961         | 0.000 | 8.237 | 567.235   |
+| u_k423_id_regfile/_15484_:D | core_clock  | min        | 0.160f     | 0.003         | 0.000 | 0.158 | NA        |
+| u_k423_id_regfile/_15493_:D | core_clock  | min        | 0.160f     | 0.003         | 0.000 | 0.158 | NA        |
+| u_k423_id_regfile/_15495_:D | core_clock  | min        | 0.160f     | 0.003         | 0.000 | 0.158 | NA        |
 +-----------------------------+-------------+------------+------------+---------------+-------+-------+-----------+
 ```
 
 - Area
 
 ```
-   Number of wires:              17965
-   Number of wire bits:          21738
-   Number of public wires:        2669
-   Number of public wire bits:    6442
+   Number of wires:              17320
+   Number of wire bits:          20887
+   Number of public wires:        2500
+   Number of public wire bits:    6067
    Number of memories:               0
    Number of memory bits:            0
    Number of processes:              0
-   Number of cells:              16287
+   Number of cells:              15772
    
-   Chip area for top module '\k423_core': 24820.194000
+   Chip area for top module '\k423_core': 23832.270000
 ```
 
 - Compared with [tinyriscv](https://github.com/liangkangnan/tinyriscv) core

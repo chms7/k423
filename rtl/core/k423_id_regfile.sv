@@ -14,9 +14,6 @@ module k423_id_regfile (
   input  logic                      ex_fwd_rd_vld_i,
   input  logic [`INST_RSDIDX_W-1:0] ex_fwd_rd_idx_i,
   input  logic [`CORE_XLEN-1:0]     ex_fwd_rd_data_i,
-  input  logic                      mem_fwd_rd_vld_i,
-  input  logic [`INST_RSDIDX_W-1:0] mem_fwd_rd_idx_i,
-  input  logic [`CORE_XLEN-1:0]     mem_fwd_rd_data_i,
   input  logic                      wb_fwd_rd_vld_i,
   input  logic [`INST_RSDIDX_W-1:0] wb_fwd_rd_idx_i,
   input  logic [`CORE_XLEN-1:0]     wb_fwd_rd_data_i,
@@ -67,44 +64,33 @@ module k423_id_regfile (
   // forward taken
   wire rs1_ex_fwd_tkn_w  = id_rs1_vld_i & ex_fwd_rd_vld_i  &
                           (id_rs1_idx_i == ex_fwd_rd_idx_i)  & (id_rs1_idx_i  != '0);
-  wire rs1_mem_fwd_tkn_w = id_rs1_vld_i & mem_fwd_rd_vld_i &
-                          (id_rs1_idx_i == mem_fwd_rd_idx_i) & (id_rs1_idx_i  != '0);
   wire rs1_wb_fwd_tkn_w  = id_rs1_vld_i & wb_fwd_rd_vld_i  &
                           (id_rs1_idx_i == wb_fwd_rd_idx_i)  & (id_rs1_idx_i  != '0);
 
   wire rs2_ex_fwd_tkn_w  = id_rs2_vld_i & ex_fwd_rd_vld_i  &
                           (id_rs2_idx_i == ex_fwd_rd_idx_i)  & (id_rs2_idx_i  != '0);
-  wire rs2_mem_fwd_tkn_w = id_rs2_vld_i & mem_fwd_rd_vld_i &
-                          (id_rs2_idx_i == mem_fwd_rd_idx_i) & (id_rs2_idx_i  != '0);
   wire rs2_wb_fwd_tkn_w  = id_rs2_vld_i & wb_fwd_rd_vld_i  &
                           (id_rs2_idx_i == wb_fwd_rd_idx_i)  & (id_rs2_idx_i  != '0);
   // sign extend forward data when store
   wire [`CORE_XLEN-1:0] rs1_ex_fwd_data_w  = ex_fwd_rd_data_i;
-  wire [`CORE_XLEN-1:0] rs1_mem_fwd_data_w = mem_fwd_rd_data_i;
   wire [`CORE_XLEN-1:0] rs1_wb_fwd_data_w  = wb_fwd_rd_data_i;
 
   wire [`CORE_XLEN-1:0] rs2_ex_fwd_data_w  =
                           {`CORE_XLEN{id_store_size_i == `RSD_SIZE_BYTE}} & {{24{ex_fwd_rd_data_i[7]}},  ex_fwd_rd_data_i[7:0]}  |
                           {`CORE_XLEN{id_store_size_i == `RSD_SIZE_HALF}} & {{16{ex_fwd_rd_data_i[15]}}, ex_fwd_rd_data_i[15:0]} |
                           {`CORE_XLEN{id_store_size_i == `RSD_SIZE_WORD}} & ex_fwd_rd_data_i;
-  wire [`CORE_XLEN-1:0] rs2_mem_fwd_data_w  =
-                          {`CORE_XLEN{id_store_size_i == `RSD_SIZE_BYTE}} & {{24{mem_fwd_rd_data_i[7]}},  mem_fwd_rd_data_i[7:0]}  |
-                          {`CORE_XLEN{id_store_size_i == `RSD_SIZE_HALF}} & {{16{mem_fwd_rd_data_i[15]}}, mem_fwd_rd_data_i[15:0]} |
-                          {`CORE_XLEN{id_store_size_i == `RSD_SIZE_WORD}} & mem_fwd_rd_data_i;
   wire [`CORE_XLEN-1:0] rs2_wb_fwd_data_w  =
                           {`CORE_XLEN{id_store_size_i == `RSD_SIZE_BYTE}} & {{24{wb_fwd_rd_data_i[7]}},  wb_fwd_rd_data_i[7:0]}  |
                           {`CORE_XLEN{id_store_size_i == `RSD_SIZE_HALF}} & {{16{wb_fwd_rd_data_i[15]}}, wb_fwd_rd_data_i[15:0]} |
                           {`CORE_XLEN{id_store_size_i == `RSD_SIZE_WORD}} & wb_fwd_rd_data_i;
 
-  // priority: ex > mem > wb
+  // priority: ex > wb
   assign id_rs1_data_o = rs1_ex_fwd_tkn_w  ? rs1_ex_fwd_data_w  :
-                         rs1_mem_fwd_tkn_w ? rs1_mem_fwd_data_w :
                          rs1_wb_fwd_tkn_w  ? rs1_wb_fwd_data_w  :
-                                             rs1_reg_data_w    ;
-  assign id_rs2_data_o = rs2_ex_fwd_tkn_w  ? rs2_ex_fwd_data_w :
-                         rs2_mem_fwd_tkn_w ? rs2_mem_fwd_data_w:
-                         rs2_wb_fwd_tkn_w  ? rs2_wb_fwd_data_w :
-                                             rs2_reg_data_w    ;
+                                             rs1_reg_data_w     ;
+  assign id_rs2_data_o = rs2_ex_fwd_tkn_w  ? rs2_ex_fwd_data_w  :
+                         rs2_wb_fwd_tkn_w  ? rs2_wb_fwd_data_w  :
+                                             rs2_reg_data_w     ;
 
   // ---------------------------------------------------------------------------
   // Abbreviation

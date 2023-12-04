@@ -16,6 +16,9 @@ module k423_if_stage (
   // pipeline handshake
   output logic                     if_stage_vld_o,
   input  logic                     id_stage_rdy_i,
+  // branch
+  input logic                      wb_bju_br_tkn_i,
+  input logic [`CORE_XLEN-1:0]     wb_bju_br_pc_i,
   // inst mem interface
   output logic                     if_mem_req_vld_o,
   output logic                     if_mem_req_wen_o,
@@ -24,9 +27,6 @@ module k423_if_stage (
   input  logic                     if_mem_req_rdy_i,
   input  logic                     if_mem_rsp_vld_i,
   input  logic [`CORE_FETCH_W-1:0] if_mem_rsp_rdata_i,
-  // branch
-  input logic                      mem_bju_br_tkn_i,
-  input logic [`CORE_XLEN-1:0]     mem_bju_br_pc_i,
   // if stage
   output logic [`CORE_ADDR_W-1:0]  if_pc_o,
   output logic [`CORE_INST_W-1:0]  if_inst_o
@@ -47,6 +47,9 @@ module k423_if_stage (
     
     .pc_stage_vld_o     ( pc_stage_vld_w     ),
     .if_stage_rdy_i     ( if_stage_rdy_w     ),
+    
+    .bju_br_tkn_i       ( wb_bju_br_tkn_i   ),
+    .bju_br_pc_i        ( wb_bju_br_pc_i    ),
   
     .if_mem_req_vld_o   ( if_mem_req_vld_o   ),
     .if_mem_req_wen_o   ( if_mem_req_wen_o   ),
@@ -55,9 +58,6 @@ module k423_if_stage (
     .if_mem_req_rdy_i   ( if_mem_req_rdy_i   ),
     .if_mem_rsp_vld_i   ( if_mem_rsp_vld_i   ),
     .if_mem_rsp_rdata_i ( if_mem_rsp_rdata_i ),
-    
-    .bju_br_tkn_i       ( mem_bju_br_tkn_i   ),
-    .bju_br_pc_i        ( mem_bju_br_pc_i    ),
 
     .pc_o               ( if_pc_o            ),
     .inst_o             ( if_inst_o          )

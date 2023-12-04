@@ -14,7 +14,7 @@ module k423_ex_stage (
   input  logic                      id_stage_vld_i,
   output logic                      ex_stage_vld_o,
   output logic                      ex_stage_rdy_o,
-  input  logic                      mem_stage_rdy_i,
+  input  logic                      wb_stage_rdy_i,
   // id stage
   input  logic [`CORE_ADDR_W-1:0]   id_pc_i,
   input  logic [`INST_GRP_W-1:0]    id_dec_grp_i,
@@ -157,6 +157,6 @@ module k423_ex_stage (
   // ---------------------------------------------------------------------------
   wire   ex_stage_done  = 1'b1;
   assign ex_stage_vld_o = id_stage_vld_i & ex_stage_done;
-  assign ex_stage_rdy_o = ~id_stage_vld_i | ex_stage_done & mem_stage_rdy_i;
+  assign ex_stage_rdy_o = ~id_stage_vld_i | ex_stage_done & wb_stage_rdy_i;
 
 endmodule

@@ -43,6 +43,22 @@ module k423_core (
   logic                       if_stage_vld_w;
   logic                       if_stage_rdy_w;
 
+  logic                       if_mem_req_vld_w;
+  logic                       if_mem_req_wen_w;
+  logic [`CORE_ADDR_W -1:0]   if_mem_req_addr_w;
+  logic [`CORE_XLEN-1:0]      if_mem_req_wdata_w;
+  logic                       if_mem_req_rdy_w;
+  logic                       if_mem_rsp_vld_w;
+  logic [`CORE_FETCH_W-1:0]   if_mem_rsp_rdata_w;
+  
+  assign mem_inst_req_vld_o   = if_mem_req_vld_w;
+  assign mem_inst_req_wen_o   = if_mem_req_wen_w;
+  assign mem_inst_req_addr_o  = if_mem_req_addr_w;
+  assign mem_inst_req_wdata_o = if_mem_req_wdata_w;
+  assign if_mem_req_rdy_w     = mem_inst_req_rdy_i;
+  assign if_mem_rsp_vld_w     = mem_inst_rsp_vld_i;
+  assign if_mem_rsp_rdata_w   = mem_inst_rsp_rdata_i;
+
   logic [`CORE_ADDR_W-1:0]    if_pc_w;
   logic [`CORE_INST_W-1:0]    if_inst_w;
 
@@ -120,55 +136,44 @@ module k423_core (
   assign mem_data_req_wdata_o = ex_mem_req_wdata_w;
   assign ex_mem_req_rdy_w     = mem_data_req_rdy_i;
 
-  // ex to mem pipeline
-  logic                       ex2mem_stage_vld_w;
+  // ex to wb pipeline
+  logic                       ex2wb_stage_vld_w;
 
-  logic [`CORE_ADDR_W-1:0]    ex2mem_pc_w;
-  logic                       ex2mem_rd_vld_w;
-  logic [`INST_RSDIDX_W-1:0]  ex2mem_rd_idx_w;
-  logic [`CORE_XLEN-1:0]      ex2mem_rd_w;
-  logic                       ex2mem_rd_load_w;
-  logic [`RSD_SIZE_W-1:0]     ex2mem_rd_load_size_w;
-  logic                       ex2mem_rd_load_unsigned_w;
-  logic [`CORE_ADDR_W-1:0]    ex2mem_rd_load_addr_w;
-  logic                       ex2mem_bju_br_tkn_w;
-  logic [`CORE_XLEN-1:0]      ex2mem_bju_br_pc_w;
+  logic [`CORE_ADDR_W-1:0]    ex2wb_pc_w;
+  logic                       ex2wb_rd_vld_w;
+  logic [`INST_RSDIDX_W-1:0]  ex2wb_rd_idx_w;
+  logic [`CORE_XLEN-1:0]      ex2wb_rd_w;
+  logic                       ex2wb_rd_load_w;
+  logic [`RSD_SIZE_W-1:0]     ex2wb_rd_load_size_w;
+  logic                       ex2wb_rd_load_unsigned_w;
+  logic [`CORE_ADDR_W-1:0]    ex2wb_rd_load_addr_w;
+  logic                       ex2wb_bju_br_tkn_w;
+  logic [`CORE_XLEN-1:0]      ex2wb_bju_br_pc_w;
 
-  // mem stage
-  logic                       mem_stage_vld_w;
-  logic                       mem_stage_rdy_w;
-
-  logic [`CORE_ADDR_W-1:0]    mem_pc_w;
-
-  logic [`CORE_XLEN-1:0]      mem_rd_w;
-  logic                       mem_rd_vld_w;
-  logic [`INST_RSDIDX_W-1:0]  mem_rd_idx_w;
-
-  logic                       mem_bju_br_tkn_w;
-  logic [`CORE_XLEN-1:0]      mem_bju_br_pc_w;
-
-  // mem to wb pipeline
-  logic                       mem2wb_stage_vld_w;
-
-  logic [`CORE_ADDR_W-1:0]    mem2wb_pc_w;
-  logic                       mem2wb_rd_vld_w;
-  logic [`INST_RSDIDX_W-1:0]  mem2wb_rd_idx_w;
-  logic [`CORE_XLEN-1:0]      mem2wb_rd_w;
+  logic                       ex2wb_mem_rsp_vld_w;
+  logic [`CORE_FETCH_W-1:0]   ex2wb_mem_rsp_rdata_w;
+  
+  assign ex2wb_mem_rsp_vld_w   = mem_data_rsp_vld_i;
+  assign ex2wb_mem_rsp_rdata_w = mem_data_rsp_rdata_i;
 
   // wb stage
   logic                       wb_stage_vld_w;
   logic                       wb_stage_rdy_w;
 
+  logic [`CORE_ADDR_W-1:0]    wb_pc_w;
+
   logic [`CORE_XLEN-1:0]      wb_rd_w;
   logic                       wb_rd_vld_w;
   logic [`INST_RSDIDX_W-1:0]  wb_rd_idx_w;
-  logic [`CORE_ADDR_W-1:0]    wb_pc_w;
+
+  logic                       wb_bju_br_tkn_w;
+  logic [`CORE_XLEN-1:0]      wb_bju_br_pc_w;
   
   // debug interface
-  assign debug_wb_pc_o     = wb_pc_w;
-  assign debug_wb_rd_vld_o = wb_rd_vld_w;
-  assign debug_wb_rd_idx_o = wb_rd_idx_w;
-  assign debug_wb_rd_o     = wb_rd_w;
+  assign debug_wb_pc_o        = wb_pc_w;
+  assign debug_wb_rd_vld_o    = wb_rd_vld_w;
+  assign debug_wb_rd_idx_o    = wb_rd_idx_w;
+  assign debug_wb_rd_o        = wb_rd_w;
 
   // ---------------------------------------------------------------------------
   // Pipeline Control Unit
@@ -183,9 +188,9 @@ module k423_core (
     .id_dec_rs2_idx_i    ( id_dec_rs2_idx_w    ),
     .ex_rd_vld_i         ( ex_rd_vld_w         ),
     .ex_rd_idx_i         ( ex_rd_idx_w         ),
-    .ex_rd_mem_i         ( ex_rd_load_w        ),
+    .ex_rd_load_i        ( ex_rd_load_w        ),
     // branch taken
-    .mem_bju_br_tkn_i    ( mem_bju_br_tkn_w    ),
+    .wb_bju_br_tkn_i     ( wb_bju_br_tkn_w     ),
     // pipeline control signals
     .pcu_stall_loaduse_o ( pcu_stall_loaduse_w ),
     .pcu_flush_br_o      ( pcu_flush_br_w      )
@@ -203,17 +208,17 @@ module k423_core (
     // pipeline handshake
     .if_stage_vld_o       ( if_stage_vld_w       ),
     .id_stage_rdy_i       ( id_stage_rdy_w       ),
-    // inst mem interface
-    .if_mem_req_vld_o     ( mem_inst_req_vld_o   ),
-    .if_mem_req_wen_o     ( mem_inst_req_wen_o   ),
-    .if_mem_req_addr_o    ( mem_inst_req_addr_o  ),
-    .if_mem_req_wdata_o   ( mem_inst_req_wdata_o ),
-    .if_mem_req_rdy_i     ( mem_inst_req_rdy_i   ),
-    .if_mem_rsp_vld_i     ( mem_inst_rsp_vld_i   ),
-    .if_mem_rsp_rdata_i   ( mem_inst_rsp_rdata_i ),
     // branch
-    .mem_bju_br_tkn_i     ( mem_bju_br_tkn_w     ),
-    .mem_bju_br_pc_i      ( mem_bju_br_pc_w      ),
+    .wb_bju_br_tkn_i      ( wb_bju_br_tkn_w      ),
+    .wb_bju_br_pc_i       ( wb_bju_br_pc_w       ),
+    // inst mem interface
+    .if_mem_req_vld_o     ( if_mem_req_vld_w     ),
+    .if_mem_req_wen_o     ( if_mem_req_wen_w     ),
+    .if_mem_req_addr_o    ( if_mem_req_addr_w    ),
+    .if_mem_req_wdata_o   ( if_mem_req_wdata_w   ),
+    .if_mem_req_rdy_i     ( if_mem_req_rdy_w     ),
+    .if_mem_rsp_vld_i     ( if_mem_rsp_vld_w     ),
+    .if_mem_rsp_rdata_i   ( if_mem_rsp_rdata_w   ),
     // if stage
     .if_pc_o              ( if_pc_w              ),
     .if_inst_o            ( if_inst_w            )
@@ -279,9 +284,6 @@ module k423_core (
     .ex_fwd_rd_vld_i    ( ex_rd_vld_w         ),
     .ex_fwd_rd_idx_i    ( ex_rd_idx_w         ),
     .ex_fwd_rd_data_i   ( ex_rd_w             ),
-    .mem_fwd_rd_vld_i   ( mem_rd_vld_w        ),
-    .mem_fwd_rd_idx_i   ( mem_rd_idx_w        ),
-    .mem_fwd_rd_data_i  ( mem_rd_w            ),
     .wb_fwd_rd_vld_i    ( wb_rd_vld_w         ),
     .wb_fwd_rd_idx_i    ( wb_rd_idx_w         ),
     .wb_fwd_rd_data_i   ( wb_rd_w             ),
@@ -354,7 +356,7 @@ module k423_core (
     .id_stage_vld_i         ( id2ex_stage_vld_w      ),
     .ex_stage_vld_o         ( ex_stage_vld_w         ),
     .ex_stage_rdy_o         ( ex_stage_rdy_w         ),
-    .mem_stage_rdy_i        ( mem_stage_rdy_w        ),
+    .wb_stage_rdy_i         ( wb_stage_rdy_w         ),
     // id stage
     .id_pc_i                ( id2ex_pc_w             ),
     .id_dec_grp_i           ( id2ex_dec_grp_w        ),
@@ -390,9 +392,9 @@ module k423_core (
   );
   
   // ---------------------------------------------------------------------------
-  // EX to MEM Pipeline
+  // EX to WB Pipeline
   // ---------------------------------------------------------------------------
-  k423_pipe_ex_mem  u_k423_pipe_ex_mem (
+  k423_pipe_ex_wb  u_k423_pipe_ex_wb (
     .clk_i                  ( clk_i                     ),
     .rst_n_i                ( rst_n_i                   ),
     // pipeline control
@@ -400,113 +402,65 @@ module k423_core (
     .pcu_flush_br_i         ( pcu_flush_br_w            ),
     // pipeline handshake
     .ex_stage_vld_i         ( ex_stage_vld_w            ),
-    .mem_stage_rdy_i        ( ex_stage_rdy_w            ),
-    .ex2mem_stage_vld_o     ( ex2mem_stage_vld_w        ),
+    .wb_stage_rdy_i         ( ex_stage_rdy_w            ),
+    .ex2wb_stage_vld_o      ( ex2wb_stage_vld_w         ),
     // ex stage
     .ex_pc_i                ( ex_pc_w                   ),
     .ex_rd_vld_i            ( ex_rd_vld_w               ),
     .ex_rd_idx_i            ( ex_rd_idx_w               ),
     .ex_rd_i                ( ex_rd_w                   ),
-    .ex_rd_load_i           ( ex_rd_load_w               ),
+    .ex_rd_load_i           ( ex_rd_load_w              ),
     .ex_rd_load_size_i      ( ex_rd_load_size_w         ),
     .ex_rd_load_unsigned_i  ( ex_rd_load_unsigned_w     ),
     .ex_rd_load_addr_i      ( ex_mem_req_addr_w         ),
     .ex_bju_br_tkn_i        ( ex_bju_br_tkn_w           ),
     .ex_bju_br_pc_i         ( ex_bju_br_pc_w            ),
-    // mem stage
-    .mem_pc_o               ( ex2mem_pc_w               ),
-    .mem_rd_vld_o           ( ex2mem_rd_vld_w           ),
-    .mem_rd_idx_o           ( ex2mem_rd_idx_w           ),
-    .mem_rd_o               ( ex2mem_rd_w               ),
-    .mem_rd_load_o          ( ex2mem_rd_load_w          ),
-    .mem_rd_load_size_o     ( ex2mem_rd_load_size_w     ),
-    .mem_rd_load_unsigned_o ( ex2mem_rd_load_unsigned_w ),
-    .mem_rd_load_addr_o     ( ex2mem_rd_load_addr_w     ),
-    .mem_bju_br_tkn_o       ( ex2mem_bju_br_tkn_w       ),
-    .mem_bju_br_pc_o        ( ex2mem_bju_br_pc_w        )
-  );
-  
-  // ---------------------------------------------------------------------------
-  // MEM Stage
-  // ---------------------------------------------------------------------------
-  k423_mem_stage  u_k423_mem_stage (
-    .clk_i                  ( clk_i                     ),
-    .rst_n_i                ( rst_n_i                   ),
-    // pipeline handshake
-    .ex_stage_vld_i         ( ex2mem_stage_vld_w        ),
-    .mem_stage_vld_o        ( mem_stage_vld_w           ),
-    .mem_stage_rdy_o        ( mem_stage_rdy_w           ),
-    .wb_stage_rdy_i         ( wb_stage_rdy_w            ),
-    // ex stage
-    .ex_pc_i                ( ex2mem_pc_w               ),
-    .ex_rd_vld_i            ( ex2mem_rd_vld_w           ),
-    .ex_rd_idx_i            ( ex2mem_rd_idx_w           ),
-    .ex_rd_i                ( ex2mem_rd_w               ),
-    .ex_rd_load_i           ( ex2mem_rd_load_w          ),
-    .ex_rd_load_size_i      ( ex2mem_rd_load_size_w     ),
-    .ex_rd_load_unsigned_i  ( ex2mem_rd_load_unsigned_w ),
-    .ex_rd_load_addr_i      ( ex2mem_rd_load_addr_w     ),
-
-    .ex_bju_br_tkn_i        ( ex2mem_bju_br_tkn_w       ),
-    .ex_bju_br_pc_i         ( ex2mem_bju_br_pc_w        ),
-    // memory response
-    .mem_data_rsp_vld_i     ( mem_data_rsp_vld_i        ),
-    .mem_data_rsp_rdata_i   ( mem_data_rsp_rdata_i      ),
-    // mem stage
-    .mem_pc_o               ( mem_pc_w                  ),
-    .mem_rd_o               ( mem_rd_w                  ),
-    .mem_rd_vld_o           ( mem_rd_vld_w              ),
-    .mem_rd_idx_o           ( mem_rd_idx_w              ),
-    
-    .mem_bju_br_tkn_o       ( mem_bju_br_tkn_w          ),
-    .mem_bju_br_pc_o        ( mem_bju_br_pc_w           )
-  );
-  
-  // ---------------------------------------------------------------------------
-  // MEM to WB Pipeline
-  // ---------------------------------------------------------------------------
-  k423_pipe_mem_wb  u_k423_pipe_mem_wb (
-    .clk_i                ( clk_i                ),
-    .rst_n_i              ( rst_n_i              ),
-    // pipeline control
-    .pcu_stall_loaduse_i  ( pcu_stall_loaduse_w  ),
-    .pcu_flush_br_i       ( pcu_flush_br_w       ),
-    // pipeline handshake
-    .mem_stage_vld_i      ( mem_stage_vld_w      ),
-    .wb_stage_rdy_i       ( mem_stage_rdy_w      ),
-    .mem2wb_stage_vld_o   ( mem2wb_stage_vld_w   ),
-    // mem stage
-    .mem_pc_i             ( mem_pc_w             ),
-    .mem_rd_vld_i         ( mem_rd_vld_w         ),
-    .mem_rd_idx_i         ( mem_rd_idx_w         ),
-    .mem_rd_i             ( mem_rd_w             ),
     // wb stage
-    .wb_pc_o              ( mem2wb_pc_w          ),
-    .wb_rd_vld_o          ( mem2wb_rd_vld_w      ),
-    .wb_rd_idx_o          ( mem2wb_rd_idx_w      ),
-    .wb_rd_o              ( mem2wb_rd_w          )
+    .wb_pc_o                ( ex2wb_pc_w                ),
+    .wb_rd_vld_o            ( ex2wb_rd_vld_w            ),
+    .wb_rd_idx_o            ( ex2wb_rd_idx_w            ),
+    .wb_rd_o                ( ex2wb_rd_w                ),
+    .wb_rd_load_o           ( ex2wb_rd_load_w           ),
+    .wb_rd_load_size_o      ( ex2wb_rd_load_size_w      ),
+    .wb_rd_load_unsigned_o  ( ex2wb_rd_load_unsigned_w  ),
+    .wb_rd_load_addr_o      ( ex2wb_rd_load_addr_w      ),
+    .wb_bju_br_tkn_o        ( ex2wb_bju_br_tkn_w        ),
+    .wb_bju_br_pc_o         ( ex2wb_bju_br_pc_w         )
   );
   
   // ---------------------------------------------------------------------------
   // WB Stage
   // ---------------------------------------------------------------------------
   k423_wb_stage  u_k423_wb_stage (
-    .clk_i            ( clk_i              ),
-    .rst_n_i          ( rst_n_i            ),
+    .clk_i                  ( clk_i                    ),
+    .rst_n_i                ( rst_n_i                  ),
     // pipeline handshake
-    .mem_stage_vld_i  ( mem2wb_stage_vld_w ),
-    .wb_stage_vld_o   ( wb_stage_vld_w     ),
-    .wb_stage_rdy_o   ( wb_stage_rdy_w     ),
-    // mem stage
-    .mem_pc_i         ( mem2wb_pc_w        ),
-    .mem_rd_vld_i     ( mem2wb_rd_vld_w    ),
-    .mem_rd_idx_i     ( mem2wb_rd_idx_w    ),
-    .mem_rd_i         ( mem2wb_rd_w        ),
-    // write back information
-    .wb_pc_o          ( wb_pc_w            ),
-    .wb_rd_vld_o      ( wb_rd_vld_w        ),
-    .wb_rd_idx_o      ( wb_rd_idx_w        ),
-    .wb_rd_o          ( wb_rd_w            )
+    .ex_stage_vld_i         ( ex2wb_stage_vld_w        ),
+    .wb_stage_vld_o         ( wb_stage_vld_w           ),
+    .wb_stage_rdy_o         ( wb_stage_rdy_w           ),
+    // ex stage
+    .ex_pc_i                ( ex2wb_pc_w               ),
+    .ex_rd_vld_i            ( ex2wb_rd_vld_w           ),
+    .ex_rd_idx_i            ( ex2wb_rd_idx_w           ),
+    .ex_rd_i                ( ex2wb_rd_w               ),
+    .ex_rd_load_i           ( ex2wb_rd_load_w          ),
+    .ex_rd_load_size_i      ( ex2wb_rd_load_size_w     ),
+    .ex_rd_load_unsigned_i  ( ex2wb_rd_load_unsigned_w ),
+    .ex_rd_load_addr_i      ( ex2wb_rd_load_addr_w     ),
+
+    .ex_bju_br_tkn_i        ( ex2wb_bju_br_tkn_w       ),
+    .ex_bju_br_pc_i         ( ex2wb_bju_br_pc_w        ),
+    // memory response
+    .mem_data_rsp_vld_i     ( ex2wb_mem_rsp_vld_w      ),
+    .mem_data_rsp_rdata_i   ( ex2wb_mem_rsp_rdata_w    ),
+    // wb stage
+    .wb_pc_o                ( wb_pc_w                  ),
+    .wb_rd_o                ( wb_rd_w                  ),
+    .wb_rd_vld_o            ( wb_rd_vld_w              ),
+    .wb_rd_idx_o            ( wb_rd_idx_w              ),
+    
+    .wb_bju_br_tkn_o        ( wb_bju_br_tkn_w          ),
+    .wb_bju_br_pc_o         ( wb_bju_br_pc_w           )
   );
   
 endmodule
