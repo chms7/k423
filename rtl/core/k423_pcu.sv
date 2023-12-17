@@ -25,8 +25,9 @@ module k423_pcu (
   output                            pcu_flush_br_o
 );
   // stall pc & if & id stages when load-use hazard occurs
-  assign pcu_stall_loaduse_o = (id_dec_rs1_vld_i & ex_rd_vld_i & ex_rd_load_i & (id_dec_rs1_idx_i == ex_rd_idx_i) & (id_dec_rs1_idx_i != '0)) |
-                               (id_dec_rs2_vld_i & ex_rd_vld_i & ex_rd_load_i & (id_dec_rs2_idx_i == ex_rd_idx_i) & (id_dec_rs2_idx_i != '0));
+  assign pcu_stall_loaduse_o = pcu_flush_br_o ? 1'b0
+                                              : ((id_dec_rs1_vld_i & ex_rd_vld_i & ex_rd_load_i & (id_dec_rs1_idx_i == ex_rd_idx_i) & (id_dec_rs1_idx_i != '0)) |
+                                                 (id_dec_rs2_vld_i & ex_rd_vld_i & ex_rd_load_i & (id_dec_rs2_idx_i == ex_rd_idx_i) & (id_dec_rs2_idx_i != '0)));
   // flush pc & if & id stages when branch taken
   assign pcu_flush_br_o = wb_bju_br_tkn_i;
   
