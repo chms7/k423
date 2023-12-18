@@ -11,8 +11,8 @@ module k423_pipe_if_id (
   input                           clk_i,
   input                           rst_n_i,
   // pipeline control
-  input                           pcu_stall_loaduse_i,
-  input                           pcu_flush_br_i,
+  input                           pcu_clear_if_id_i,
+  input                           pcu_stall_if_id_i,
   // pipeline handshake
   input  logic                    if_stage_vld_i,
   input  logic                    id_stage_rdy_i,
@@ -27,7 +27,7 @@ module k423_pipe_if_id (
   always @(posedge clk_i or negedge rst_n_i) begin
     if (!rst_n_i)
       if2id_stage_vld_o <= 1'b0;
-    else if (pcu_flush_br_i)
+    else if (pcu_clear_if_id_i)
       if2id_stage_vld_o <= 1'b0;
     else if (id_stage_rdy_i)
       if2id_stage_vld_o <= if_stage_vld_i;
@@ -37,10 +37,13 @@ module k423_pipe_if_id (
     if (!rst_n_i) begin
       id_pc_o    <= '0;
       id_inst_o  <= '0;
-    end else if (pcu_flush_br_i) begin
+    end else if (pcu_clear_if_id_i) begin
       id_pc_o    <= '0;
       id_inst_o  <= '0;
-    end else if (if_stage_vld_i & id_stage_rdy_i & ~pcu_stall_loaduse_i) begin
+    end else if (pcu_stall_if_id_i) begin
+      id_pc_o    <= id_pc_o;
+      id_inst_o  <= id_inst_o;
+    end else if (if_stage_vld_i & id_stage_rdy_i) begin
       id_pc_o    <= if_pc_i;
       id_inst_o  <= if_inst_i;
     end

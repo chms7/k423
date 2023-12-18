@@ -11,14 +11,16 @@ module k423_if_fetch (
   input                            clk_i,
   input                            rst_n_i,
   // pipeline control
-  input                            pcu_stall_loaduse_i,
-  input                            pcu_flush_br_i,
+  input                            pcu_clear_pc_i,
+  input                            pcu_stall_pc_i,
   // pipeline handshake
   output logic                     pc_stage_vld_o,
   input  logic                     if_stage_rdy_i,
   // branch
-  input logic                      bju_br_tkn_i,
-  input logic [`CORE_XLEN-1:0]     bju_br_pc_i,
+  input logic                      wb_excp_br_tkn_i,
+  input logic [`CORE_XLEN-1:0]     wb_excp_br_pc_i,
+  input logic                      wb_bju_br_tkn_i,
+  input logic [`CORE_XLEN-1:0]     wb_bju_br_pc_i,
   // inst mem request
   output logic                     if_mem_req_vld_o,
   output logic                     if_mem_req_wen_o,
@@ -38,21 +40,24 @@ module k423_if_fetch (
     .clk_i                ( clk_i               ),
     .rst_n_i              ( rst_n_i             ),
     
-    .pcu_stall_loaduse_i  ( pcu_stall_loaduse_i ),
-    .pcu_flush_br_i       ( pcu_flush_br_i      ),
+    .pcu_clear_pc_i       ( pcu_clear_pc_i      ),
+    .pcu_stall_pc_i       ( pcu_stall_pc_i      ),
     
     .pc_stage_vld_o       ( pc_stage_vld_o      ),
     .if_stage_rdy_i       ( if_stage_rdy_i      ),
                                                 
-    .bju_br_tkn_i         ( bju_br_tkn_i        ),
-    .bju_br_pc_i          ( bju_br_pc_i         ),
+    .excp_br_tkn_i        ( wb_excp_br_tkn_i    ),
+    .excp_br_pc_i         ( wb_excp_br_pc_i     ),
+    .bju_br_tkn_i         ( wb_bju_br_tkn_i     ),
+    .bju_br_pc_i          ( wb_bju_br_pc_i      ),
                                                 
     .pc_o                 ( pc                  ),
     .next_pc_o            ( next_pc             )
   );
 
   // inst mem request
-  assign if_mem_req_vld_o   = ~pcu_stall_loaduse_i;
+  // stall fetch from next_pc to hold the last instruction
+  assign if_mem_req_vld_o   = ~pcu_stall_pc_i;
   assign if_mem_req_wen_o   = 1'b0;
   assign if_mem_req_addr_o  = next_pc;
   assign if_mem_req_wdata_o = '0;

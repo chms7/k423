@@ -11,12 +11,14 @@ module k423_if_pcgen (
   input                            clk_i,
   input                            rst_n_i,
   // pipeline control
-  input                            pcu_stall_loaduse_i,
-  input                            pcu_flush_br_i,
+  input                            pcu_clear_pc_i,
+  input                            pcu_stall_pc_i,
   // pipeline handshake
   output logic                     pc_stage_vld_o,
   input  logic                     if_stage_rdy_i,
   // branch
+  input logic                      excp_br_tkn_i,
+  input logic [`CORE_XLEN-1:0]     excp_br_pc_i,
   input logic                      bju_br_tkn_i,
   input logic [`CORE_XLEN-1:0]     bju_br_pc_i,
   input logic                      bpu_br_tkn_i,
@@ -37,13 +39,19 @@ module k423_if_pcgen (
     .cout (              )
   );
 
-  assign next_pc = bju_br_tkn_i ? bju_br_pc_i : norm_next_pc;
+  assign next_pc =  excp_br_tkn_i ? excp_br_pc_i :
+                    bju_br_tkn_i  ? bju_br_pc_i  :
+                                    norm_next_pc ;
 
   // update pc
   always @(posedge clk_i or negedge rst_n_i) begin
     if (!rst_n_i)
       pc <= `RST_PC;
-    else if (if_stage_rdy_i & ~pcu_stall_loaduse_i)
+    else if (pcu_clear_pc_i)
+      pc <= 32'h0000_0000;
+    else if (pcu_stall_pc_i)
+      pc <= pc;
+    else if (if_stage_rdy_i)
       pc <= next_pc;
   end
   

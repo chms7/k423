@@ -20,6 +20,7 @@ module k423_id_stage (
   input  logic [`CORE_INST_W-1:0]   if_inst_i,
   // decode information
   output logic [`CORE_ADDR_W-1:0]   id_pc_o,
+  output logic [`CORE_INST_W-1:0]   id_inst_o,
   output logic [`INST_GRP_W-1:0]    id_dec_grp_o,
   output logic [`INST_INFO_W-1:0]   id_dec_info_o,
   
@@ -31,8 +32,13 @@ module k423_id_stage (
   output logic [`INST_RSDIDX_W-1:0] id_dec_rd_idx_o,
   output logic [`CORE_XLEN-1:0]     id_dec_imm_o,
 
-  output logic [`RSD_SIZE_W-1:0]    id_dec_load_size_o,
-  output logic [`RSD_SIZE_W-1:0]    id_dec_store_size_o
+  output logic [`LS_SIZE_W-1:0]     id_dec_load_size_o,
+  output logic [`LS_SIZE_W-1:0]     id_dec_store_size_o,
+  
+  output logic [`EXCP_TYPE_W-1:0]   id_dec_excp_type_o,
+  output logic [`INT_TYPE_W-1:0]    id_dec_int_type_o,
+  output logic [`INST_CSRADR_W-1:0] id_dec_csr_addr_o,
+  output logic [`INST_ZIMM_W-1:0]   id_dec_csr_zimm_o
 );
   // ---------------------------------------------------------------------------
   // Decode
@@ -52,10 +58,16 @@ module k423_id_stage (
     .dec_imm_o        ( id_dec_imm_o        ),
 
     .dec_load_size_o  ( id_dec_load_size_o  ),
-    .dec_store_size_o ( id_dec_store_size_o )
+    .dec_store_size_o ( id_dec_store_size_o ),
+
+    .dec_excp_type_o  ( id_dec_excp_type_o  ),
+    .dec_int_type_o   ( id_dec_int_type_o   ),
+    .dec_csr_addr_o   ( id_dec_csr_addr_o   ),
+    .dec_csr_zimm_o   ( id_dec_csr_zimm_o   )
   );
   
-  assign id_pc_o = if_pc_i;
+  assign id_pc_o   = if_pc_i;
+  assign id_inst_o = if_inst_i;
 
   // ---------------------------------------------------------------------------
   // Pipeline Handshake

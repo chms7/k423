@@ -12,6 +12,7 @@
 // Test Options
 `define TEST_RV32UI   1
 // `define TEST_RV32UM   1
+`define TEST_RV32MI   1
 // `define DEBUG_INFO_WB 1
 
 module tb_isa;
@@ -49,6 +50,8 @@ logic [`CORE_XLEN-1:0]      debug_wb_rd_w;
 
 // Regfile
 wire[`CORE_XLEN-1:0] x3  = u_k423_core.u_k423_id_regfile.regfile[3];
+wire[`CORE_XLEN-1:0] x10 = u_k423_core.u_k423_id_regfile.regfile[10];
+wire[`CORE_XLEN-1:0] x17 = u_k423_core.u_k423_id_regfile.regfile[17];
 wire[`CORE_XLEN-1:0] x26 = u_k423_core.u_k423_id_regfile.regfile[26];
 wire[`CORE_XLEN-1:0] x27 = u_k423_core.u_k423_id_regfile.regfile[27];
 wire[`CORE_XLEN-1:0] x30 = u_k423_core.u_k423_id_regfile.regfile[30];
@@ -366,12 +369,12 @@ initial begin
     // $readmemh ("./tests/riscv-tests/isa/generated/rv32ui-p-fence_i.verilog", u_inst_mem.ram);
     // // $readmemh ("./tests/riscv-tests/isa/generated/rv32ui-p-fence_i.verilog", u_data_mem.ram);
     // inst_test;
+    // #PERIOD
 `endif
 
 `ifdef TEST_RV32UM
-    #PERIOD
-      $display("\n\033[43;30m----------------------- TEST RV32UM BEGIN ------------------------\033[0m\n");
-    #PERIOD
+    $display("\n\033[43;30m----------------------- TEST RV32UM BEGIN ------------------------\033[0m\n");
+
     $display("Loading div instructions...");
     $fwrite(file, "\n div \t");
     $readmemh ("./tests/riscv-tests/isa/generated/rv32um-p-div.verilog", u_inst_mem.ram);
@@ -419,12 +422,71 @@ initial begin
     $readmemh ("./tests/riscv-tests/isa/generated/rv32um-p-remu.verilog", u_inst_mem.ram);
     $readmemh ("./tests/riscv-tests/isa/generated/rv32um-p-remu.verilog", u_data_mem.ram);
     inst_test;
+    #PERIOD
+`endif
+
+`ifdef TEST_RV32MI
+    $display("\n\033[43;30m----------------------- TEST RV32MI BEGIN ------------------------\033[0m\n");
+
+    $display("Loading breakpoint instructions...");
+    $fwrite(file, "\n breakpoint \t");
+    $readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-breakpoint.verilog"}, u_inst_mem.ram);
+    //$readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-breakpoint.verilog"}, u_data_mem.ram);
+    inst_test;
+    #PERIOD
+    $display("Loading csr instructions...");
+    $fwrite(file, "\n csr \t");
+    $readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-csr.verilog"}, u_inst_mem.ram);
+    //$readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-csr.verilog"}, u_data_mem.ram);
+    inst_test;
+    #PERIOD
+    // $display("Loading illegal instructions...");
+    // $fwrite(file, "\n illegal \t");
+    // $readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-illegal.verilog"}, u_inst_mem.ram);
+    // //$readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-illegal.verilog"}, u_data_mem.ram);
+    // inst_test;
+    // #PERIOD
+    // $display("Loading ma_addr instructions...");
+    // $fwrite(file, "\n ma_addr \t");
+    // $readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-ma_addr.verilog"}, u_inst_mem.ram);
+    // //$readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-ma_addr.verilog"}, u_data_mem.ram);
+    // inst_test;
+    // #PERIOD
+    // $display("Loading ma_fetch instructions...");
+    // $fwrite(file, "\n ma_fetch \t");
+    // $readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-ma_fetch.verilog"}, u_inst_mem.ram);
+    // //$readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-ma_fetch.verilog"}, u_data_mem.ram);
+    // inst_test;
+    // #PERIOD
+    $display("Loading mcsr instructions...");
+    $fwrite(file, "\n mcsr \t");
+    $readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-mcsr.verilog"}, u_inst_mem.ram);
+    //$readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-mcsr.verilog"}, u_data_mem.ram);
+    inst_test;
+    #PERIOD
+    // $display("Loading sbreak instructions...");
+    // $fwrite(file, "\n sbreak \t");
+    // $readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-sbreak.verilog"}, u_inst_mem.ram);
+    // //$readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-sbreak.verilog"}, u_data_mem.ram);
+    // inst_test;
+    // #PERIOD
+    // $display("Loading scall instructions...");
+    // $fwrite(file, "\n scall \t");
+    // $readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-scall.verilog"}, u_inst_mem.ram);
+    // //$readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-scall.verilog"}, u_data_mem.ram);
+    // inst_test;
+    // #PERIOD
+    $display("Loading shamt instructions...");
+    $fwrite(file, "\n shamt \t");
+    $readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-shamt.verilog"}, u_inst_mem.ram);
+    //$readmemh ({"./tests/riscv-tests/isa/generated/rv32mi-p-shamt.verilog"}, u_data_mem.ram);
+    inst_test;
+    #PERIOD
 `endif
 
     #(PERIOD*10) $finish;
 end
 
-// Instruction Tests
 task inst_test;
 begin
     #PERIOD
@@ -436,12 +498,14 @@ begin
     #PERIOD
     rst_n_i = 1'b1;
     #PERIOD        
-    wait (x26 == 32'b1);
+    // wait (x26 == 32'd1);
+    wait (x17 == 32'd93);
     timer2 = $time;
     $display("test time: %0d cycles", (timer2-timer1)/PERIOD);
     $fwrite(file, "%0d", (timer2-timer1)/PERIOD);
     #(18*PERIOD)
-    if (x27 == 32'b1) begin
+    // if (x27 == 32'd1) begin
+    if (x10 == 32'b0) begin
         pass_display;
     end else begin
         fail_display;

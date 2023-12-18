@@ -22,18 +22,24 @@ module k423_id_decode (
   output logic [`INST_RSDIDX_W-1:0] dec_rd_idx_o,
   output logic [`CORE_XLEN-1:0]     dec_imm_o,
 
-  output logic [`RSD_SIZE_W-1:0]    dec_load_size_o,
-  output logic [`RSD_SIZE_W-1:0]    dec_store_size_o
+  output logic [`LS_SIZE_W-1:0]     dec_load_size_o,
+  output logic [`LS_SIZE_W-1:0]     dec_store_size_o,
+  
+  output logic [`EXCP_TYPE_W-1:0]   dec_excp_type_o,
+  output logic [`INT_TYPE_W-1:0]    dec_int_type_o,
+  output logic [`INST_CSRADR_W-1:0] dec_csr_addr_o,
+  output logic [`INST_ZIMM_W-1:0]   dec_csr_zimm_o
 );
   // ---------------------------------------------------------------------------
   // Instruction Encode
   // ---------------------------------------------------------------------------
-  wire [`INST_OPCODE_W-1:0] inst_opcode  = if_inst_i[6:0];
-  wire [2:0]                inst_funct3  = if_inst_i[14:12];
-  wire [6:0]                inst_funct7  = if_inst_i[31:25];
-  wire [`INST_RSDIDX_W-1:0] inst_rd_idx  = if_inst_i[11:7];
-  wire [`INST_RSDIDX_W-1:0] inst_rs1_idx = if_inst_i[19:15];
-  wire [`INST_RSDIDX_W-1:0] inst_rs2_idx = if_inst_i[24:20];
+  wire [`INST_OPCODE_W-1:0] inst_opcode   = if_inst_i[6:0];
+  wire [2:0]                inst_funct3   = if_inst_i[14:12];
+  wire [6:0]                inst_funct7   = if_inst_i[31:25];
+  wire [`INST_RSDIDX_W-1:0] inst_rd_idx   = if_inst_i[11:7];
+  wire [`INST_RSDIDX_W-1:0] inst_rs1_idx  = if_inst_i[19:15];
+  wire [`INST_RSDIDX_W-1:0] inst_rs2_idx  = if_inst_i[24:20];
+  wire [`INST_CSRADR_W-1:0] inst_csr_addr = if_inst_i[31:20];
   
   // opcode
   wire inst_opcode_10_00  = inst_opcode[1:0] == 2'b00;
@@ -70,6 +76,7 @@ module k423_id_decode (
   wire inst_funct7_0000000 = inst_funct7 == 7'b0000000;
   wire inst_funct7_0100000 = inst_funct7 == 7'b0100000;
   wire inst_funct7_0000001 = inst_funct7 == 7'b0000001;
+  wire inst_funct7_0011000 = inst_funct7 == 7'b0011000;
   
   // rv32 instruction
   wire dec_rv32 = inst_opcode_10_11;
@@ -96,14 +103,19 @@ module k423_id_decode (
 
   wire dec_alu_rs2imm = inst_opcode_65_00;
 
-  // wire dec_alu = (inst_opcode_42_100 & (inst_opcode_65_00 | (inst_opcode_65_01 & ~inst_funct7_0000001))) |
-  //                 dec_alu_lui | dec_alu_auipc;
-  wire                        dec_alu = dec_alu_add | dec_alu_sub | dec_alu_and | dec_alu_or  | dec_alu_xor  |
-                                        dec_alu_sll | dec_alu_srl | dec_alu_sra | dec_alu_slt | dec_alu_sltu |
-                                        dec_alu_lui | dec_alu_auipc;
+  // wire                        dec_alu      = (inst_opcode_42_100 & (inst_opcode_65_00 | (inst_opcode_65_01 & ~inst_funct7_0000001))) |
+  //                                             dec_alu_lui | dec_alu_auipc;
+  wire                        dec_alu      = dec_alu_add | dec_alu_sub | dec_alu_and | dec_alu_or  | dec_alu_xor  |
+                                             dec_alu_sll | dec_alu_srl | dec_alu_sra | dec_alu_slt | dec_alu_sltu |
+                                             dec_alu_lui | dec_alu_auipc;
   wire [`INST_INFO_ALU_W-1:0] dec_alu_info = {dec_alu_rs2imm, dec_alu_auipc, dec_alu_lui,
                                               dec_alu_sltu, dec_alu_slt, dec_alu_sra, dec_alu_srl, dec_alu_sll,
                                               dec_alu_xor, dec_alu_or, dec_alu_and, dec_alu_sub, dec_alu_add};
+
+  // ---------------------------------------------------------------------------
+  // MDU
+  // ---------------------------------------------------------------------------
+  wire dec_mdu = inst_opcode_65_01 & inst_opcode_42_100 & inst_funct7_0000001;
 
   // ---------------------------------------------------------------------------
   // LSU
@@ -135,23 +147,68 @@ module k423_id_decode (
 
   wire dec_bju_unsigned = inst_funct3[1];
 
-  wire                        dec_bju = dec_bju_bxx | dec_bju_jal | dec_bju_jalr;
+  wire                        dec_bju      = dec_bju_bxx | dec_bju_jal | dec_bju_jalr;
   wire [`INST_INFO_BJU_W-1:0] dec_bju_info = {dec_bju_unsigned, dec_bju_jalr, dec_bju_jal,
                                               dec_bju_bge, dec_bju_blt, dec_bju_bne, dec_bju_beq,
                                               dec_bju_bxx};
 
   // ---------------------------------------------------------------------------
-  // MDU
-  // ---------------------------------------------------------------------------
-  wire dec_mdu = inst_opcode_65_01 & inst_opcode_42_100 & inst_funct7_0000001;
-
-  // ---------------------------------------------------------------------------
   // CSR
   // ---------------------------------------------------------------------------
-  wire dec_csr = inst_opcode_65_11 & inst_opcode_42_100 & ~inst_funct3_000;
+  wire dec_csr_csrrw  = inst_opcode_65_11 & inst_opcode_42_100 & (inst_funct3_001 | inst_funct3_101);
+  wire dec_csr_csrrs  = inst_opcode_65_11 & inst_opcode_42_100 & (inst_funct3_010 | inst_funct3_110);
+  wire dec_csr_csrrc  = inst_opcode_65_11 & inst_opcode_42_100 & (inst_funct3_011 | inst_funct3_111);
+  wire dec_csr_zimm   = inst_funct3_101 | inst_funct3_110 | inst_funct3_111;
 
-  // fence
-  wire dec_fence = inst_opcode_65_00 & inst_opcode_42_011;
+  // wire                        dec_csr      = (inst_opcode_65_11 & inst_opcode_42_100 & ~inst_funct3_000);
+  wire                        dec_csr      = dec_csr_csrrw | dec_csr_csrrs | dec_csr_csrrc;
+  wire [`INST_INFO_CSR_W-1:0] dec_csr_info = {dec_csr_zimm, dec_csr_csrrc,  dec_csr_csrrs,  dec_csr_csrrw};
+
+  assign dec_csr_addr_o = inst_csr_addr;
+  assign dec_csr_zimm_o = inst_rs1_idx;
+
+  // ---------------------------------------------------------------------------
+  // Others
+  // ---------------------------------------------------------------------------
+  wire dec_inst_all0       = if_inst_i == '0;
+  wire dec_inst_fence      = inst_opcode_65_00 & inst_opcode_42_011;
+  wire dec_inst_breakpoint = dec_rv32 & inst_opcode_65_11 & inst_opcode_42_100 & inst_funct3_000 & inst_funct7_0000001 &
+                            (inst_rs1_idx == '0) & (inst_rd_idx == '0);
+  wire dec_inst_ecall      = dec_rv32 & inst_opcode_65_11 & inst_opcode_42_100 & inst_funct3_000 & inst_funct7_0000000 &
+                            (inst_rs1_idx == '0) & (inst_rd_idx == '0);
+  wire dec_inst_mret       = inst_opcode_65_11 & inst_opcode_42_100 & inst_funct3_000 & inst_funct7_0011000 &
+                            (inst_rd_idx == '0) & (inst_rs1_idx == '0) & (inst_rs2_idx == 5'b00010);
+
+  // ---------------------------------------------------------------------------
+  // Exception
+  // ---------------------------------------------------------------------------
+  wire dec_excp_inst_misaligned   = 1'b0;
+  wire dec_excp_inst_fault        = 1'b0;
+  wire dec_excp_illegal_inst      = ~(dec_alu | dec_mdu | dec_lsu | dec_bju | dec_csr | dec_inst_fence  |
+                                      dec_inst_ecall | dec_inst_breakpoint | dec_inst_mret | dec_inst_all0);
+  wire dec_excp_breakpoint        = dec_inst_breakpoint;
+  wire dec_excp_load_misaligned   = 1'b0;
+  wire dec_excp_load_fault        = 1'b0;
+  wire dec_excp_store_misaligned  = 1'b0;
+  wire dec_excp_store_fault       = 1'b0;
+  wire dec_excp_ecall_u           = dec_inst_ecall;
+
+  wire dec_excp_flag = dec_excp_inst_misaligned | dec_excp_inst_fault | dec_excp_illegal_inst     | dec_excp_breakpoint  |
+                       dec_excp_load_misaligned | dec_excp_load_fault | dec_excp_store_misaligned | dec_excp_store_fault |
+                       dec_excp_ecall_u;
+
+  wire dec_mret      = dec_inst_mret;
+  
+  assign dec_excp_type_o = {dec_mret, dec_excp_ecall_u, dec_excp_store_fault, dec_excp_store_misaligned,
+                            dec_excp_load_fault, dec_excp_load_misaligned, dec_excp_breakpoint,
+                            dec_excp_illegal_inst, dec_excp_inst_fault, dec_excp_inst_misaligned, dec_excp_flag};
+
+  // ---------------------------------------------------------------------------
+  // Interrupt
+  // ---------------------------------------------------------------------------
+  wire dec_int_flag = 1'b0;
+  
+  assign dec_int_type_o = dec_int_flag;
   
   // ---------------------------------------------------------------------------
   // Instruction Group & Information
@@ -163,7 +220,9 @@ module k423_id_decode (
   assign dec_grp_o[`INST_GRP_CSR]  = dec_rv32 & dec_csr;
   assign dec_info_o = {`INST_INFO_W{dec_alu}} & {{(`INST_INFO_W-`INST_INFO_ALU_W){1'b0}}, dec_alu_info} |
                       {`INST_INFO_W{dec_lsu}} & {{(`INST_INFO_W-`INST_INFO_LSU_W){1'b0}}, dec_lsu_info} |
-                      {`INST_INFO_W{dec_bju}} & {{(`INST_INFO_W-`INST_INFO_BJU_W){1'b0}}, dec_bju_info};
+                      {`INST_INFO_W{dec_bju}} & {{(`INST_INFO_W-`INST_INFO_BJU_W){1'b0}}, dec_bju_info} |
+                      {`INST_INFO_W{dec_csr}} & {{(`INST_INFO_W-`INST_INFO_CSR_W){1'b0}}, dec_csr_info} ;
+
 
   // ---------------------------------------------------------------------------
   // Instruction Operands & Immediate
@@ -182,12 +241,12 @@ module k423_id_decode (
   assign dec_rs2_idx_o = inst_rs2_idx;
   assign dec_rd_idx_o  = inst_rd_idx;
 
-  assign dec_store_size_o = (dec_lsu_store & dec_lsu_size_byte) ? `RSD_SIZE_BYTE :
-                            (dec_lsu_store & dec_lsu_size_half) ? `RSD_SIZE_HALF :
-                                                                  `RSD_SIZE_WORD ;
-  assign dec_load_size_o  = (dec_lsu_load  & dec_lsu_size_byte) ? `RSD_SIZE_BYTE :
-                            (dec_lsu_load  & dec_lsu_size_half) ? `RSD_SIZE_HALF :
-                                                                  `RSD_SIZE_WORD ;
+  assign dec_store_size_o = (dec_lsu_store & dec_lsu_size_byte) ? `LS_SIZE_BYTE :
+                            (dec_lsu_store & dec_lsu_size_half) ? `LS_SIZE_HALF :
+                                                                  `LS_SIZE_WORD ;
+  assign dec_load_size_o  = (dec_lsu_load  & dec_lsu_size_byte) ? `LS_SIZE_BYTE :
+                            (dec_lsu_load  & dec_lsu_size_half) ? `LS_SIZE_HALF :
+                                                                  `LS_SIZE_WORD ;
   
   // immediate
   wire [`CORE_XLEN-1:0] inst_immi = {{20{if_inst_i[31]}}, if_inst_i[31:20]};

@@ -17,7 +17,7 @@ module k423_ex_lsu (
   input  logic [`CORE_XLEN-1:0]     dec_rs1_i,
   input  logic [`CORE_XLEN-1:0]     dec_rs2_i,
   input  logic [`CORE_XLEN-1:0]     dec_imm_i,
-  input  logic [`RSD_SIZE_W-1:0]    dec_store_size_i,
+  input  logic [`LS_SIZE_W-1:0]     dec_store_size_i,
   // lsu
   output logic                      lsu_rd_load_o,
   output logic                      lsu_rd_load_unsigned_o,
@@ -43,9 +43,9 @@ module k423_ex_lsu (
 
   // memory request
   assign lsu_mem_req_vld_o    = dec_grp_i[`INST_GRP_LSU];
-  assign lsu_mem_req_wen_o    = {4{dec_info_i[`INST_INFO_LSU_STORE] & (dec_store_size_i == `RSD_SIZE_BYTE)}} & 4'b0001 |
-                                {4{dec_info_i[`INST_INFO_LSU_STORE] & (dec_store_size_i == `RSD_SIZE_HALF)}} & 4'b0011 |
-                                {4{dec_info_i[`INST_INFO_LSU_STORE] & (dec_store_size_i == `RSD_SIZE_WORD)}} & 4'b1111 ;
+  assign lsu_mem_req_wen_o    = {4{dec_info_i[`INST_INFO_LSU_STORE] & (dec_store_size_i == `LS_SIZE_BYTE)}} & 4'b0001 |
+                                {4{dec_info_i[`INST_INFO_LSU_STORE] & (dec_store_size_i == `LS_SIZE_HALF)}} & 4'b0011 |
+                                {4{dec_info_i[`INST_INFO_LSU_STORE] & (dec_store_size_i == `LS_SIZE_WORD)}} & 4'b1111 ;
   assign lsu_mem_req_addr_o   = addr_adder_res;
   assign lsu_mem_req_wdata_o  = dec_rs2_i;
   

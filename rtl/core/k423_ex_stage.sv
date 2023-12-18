@@ -17,6 +17,7 @@ module k423_ex_stage (
   input  logic                      wb_stage_rdy_i,
   // id stage
   input  logic [`CORE_ADDR_W-1:0]   id_pc_i,
+  input  logic [`CORE_INST_W-1:0]   id_inst_i,
   input  logic [`INST_GRP_W-1:0]    id_dec_grp_i,
   input  logic [`INST_INFO_W-1:0]   id_dec_info_i,
 
@@ -30,8 +31,13 @@ module k423_ex_stage (
   input  logic [`INST_RSDIDX_W-1:0] id_dec_rd_idx_i,
   input  logic [`CORE_XLEN-1:0]     id_dec_imm_i,
 
-  input  logic [`RSD_SIZE_W-1:0]    id_dec_load_size_i,
-  input  logic [`RSD_SIZE_W-1:0]    id_dec_store_size_i,
+  input  logic [`LS_SIZE_W-1:0]     id_dec_load_size_i,
+  input  logic [`LS_SIZE_W-1:0]     id_dec_store_size_i,
+
+  input  logic [`EXCP_TYPE_W-1:0]   id_dec_excp_type_i,
+  input  logic [`INT_TYPE_W-1:0]    id_dec_int_type_i,
+  input  logic [`INST_CSRADR_W-1:0] id_dec_csr_addr_i,
+  input  logic [`INST_ZIMM_W-1:0]   id_dec_csr_zimm_i,
   // ex stage
   output logic [`CORE_ADDR_W-1:0]   ex_pc_o,
   // rd information
@@ -40,8 +46,10 @@ module k423_ex_stage (
   output logic [`CORE_XLEN-1:0]     ex_rd_o,
   output logic                      ex_rd_load_o,
   output logic                      ex_rd_load_unsigned_o,
-  output logic [`RSD_SIZE_W-1:0]    ex_rd_load_size_o,
+  output logic [`LS_SIZE_W-1:0]     ex_rd_load_size_o,
   // branch
+  output logic                      ex_excp_br_tkn_o,
+  output logic [`CORE_XLEN-1:0]     ex_excp_br_pc_o,
   output logic                      ex_bju_br_tkn_o,
   output logic [`CORE_XLEN-1:0]     ex_bju_br_pc_o,
   // data mem interface
@@ -133,7 +141,45 @@ module k423_ex_stage (
   // ---------------------------------------------------------------------------
   // CSR
   // ---------------------------------------------------------------------------
+  logic                    csr_mtvec_tkn_w;
+  logic [`CORE_ADDR_W-1:0] csr_mtvec_w;
+  logic                    csr_mepc_tkn_w;
+  logic [`CORE_ADDR_W-1:0] csr_mepc_w;
+  logic [`CORE_XLEN-1:0]   csr_rd_w;
+  
+`ifdef ISA_Zicsr
 
+  k423_ex_csr  u_k423_ex_csr (
+    .clk_i              ( clk_i               ),
+    .rst_n_i            ( rst_n_i             ),
+
+    .id_pc_i            ( id_pc_i             ),
+    .id_inst_i          ( id_inst_i           ),
+    .id_dec_grp_i       ( id_dec_grp_i        ),
+    .id_dec_info_i      ( id_dec_info_i       ),
+    .id_dec_rs1_vld_i   ( id_dec_rs1_vld_i    ),
+    .id_dec_rs1_i       ( id_dec_rs1_i        ),
+    .id_dec_excp_type_i ( id_dec_excp_type_i  ),
+    .id_dec_int_type_i  ( id_dec_int_type_i   ),
+    .id_dec_csr_addr_i  ( id_dec_csr_addr_i   ),
+    .id_dec_csr_zimm_i  ( id_dec_csr_zimm_i   ),
+  
+    .csr_mtvec_tkn_o    ( csr_mtvec_tkn_w     ),
+    .csr_mtvec_o        ( csr_mtvec_w         ),
+    .csr_mepc_tkn_o     ( csr_mepc_tkn_w      ),
+    .csr_mepc_o         ( csr_mepc_w          ),
+    .csr_rd_o           ( csr_rd_w            )
+  );
+
+`else
+
+  assign csr_mtvec_tkn_w = '0;
+  assign csr_mtvec_w     = '0;
+  assign csr_mepc_tkn_w  = '0;
+  assign csr_mepc_w      = '0;
+  assign csr_rd_w        = '0;
+
+`endif
 
 
   // ---------------------------------------------------------------------------
@@ -141,7 +187,9 @@ module k423_ex_stage (
   // ---------------------------------------------------------------------------
   assign ex_rd_vld_o            = id_dec_rd_vld_i;
   assign ex_rd_idx_o            = id_dec_rd_idx_i;
-  assign ex_rd_o                = bju_jal_rd_tkn_w ? bju_jal_rd_w : alu_rd_w;
+  assign ex_rd_o                = id_dec_grp_i[`INST_GRP_CSR] ? csr_rd_w     :
+                                  bju_jal_rd_tkn_w            ? bju_jal_rd_w :
+                                                                alu_rd_w     ;
 
   assign ex_rd_load_o           = lsu_rd_load_w;
   assign ex_rd_load_size_o      = id_dec_load_size_i;
@@ -150,7 +198,12 @@ module k423_ex_stage (
   assign ex_bju_br_tkn_o        = bju_br_tkn_w;
   assign ex_bju_br_pc_o         = bju_br_pc_w;
   
-  assign ex_pc_o = id_pc_i;
+  assign ex_excp_br_tkn_o       = csr_mepc_tkn_w  | csr_mtvec_tkn_w;
+  assign ex_excp_br_pc_o        = csr_mepc_tkn_w  ? csr_mepc_w     :
+                                  csr_mtvec_tkn_w ? csr_mtvec_w    :
+                                                    32'h0000_0000  ;
+  
+  assign ex_pc_o                = id_pc_i;
 
   // ---------------------------------------------------------------------------
   // Pipeline Handshake

@@ -20,10 +20,12 @@ module k423_wb_stage (
   input  logic [`INST_RSDIDX_W-1:0] ex_rd_idx_i,
   input  logic [`CORE_XLEN-1:0]     ex_rd_i,
   input  logic                      ex_rd_load_i,
-  input  logic [`RSD_SIZE_W-1:0]    ex_rd_load_size_i,
+  input  logic [`LS_SIZE_W-1:0]    ex_rd_load_size_i,
   input  logic                      ex_rd_load_unsigned_i,
   input  logic [`CORE_ADDR_W-1:0]   ex_rd_load_addr_i,
 
+  input  logic                      ex_excp_br_tkn_i,
+  input  logic [`CORE_XLEN-1:0]     ex_excp_br_pc_i,
   input  logic                      ex_bju_br_tkn_i,
   input  logic [`CORE_XLEN-1:0]     ex_bju_br_pc_i,
   // memory response
@@ -35,6 +37,8 @@ module k423_wb_stage (
   output logic [`INST_RSDIDX_W-1:0] wb_rd_idx_o,
   output logic [`CORE_XLEN-1:0]     wb_rd_o,
 
+  output logic                      wb_excp_br_tkn_o,
+  output logic [`CORE_XLEN-1:0]     wb_excp_br_pc_o,
   output logic                      wb_bju_br_tkn_o,
   output logic [`CORE_XLEN-1:0]     wb_bju_br_pc_o
 );
@@ -45,31 +49,27 @@ module k423_wb_stage (
   assign wb_rd_vld_o = ex_rd_vld_i;
   assign wb_rd_idx_o = ex_rd_idx_i;
   
-  wire load_unsigned_byte = ex_rd_load_i & (ex_rd_load_size_i == `RSD_SIZE_BYTE) &  ex_rd_load_unsigned_i;
-  wire load_signed_byte   = ex_rd_load_i & (ex_rd_load_size_i == `RSD_SIZE_BYTE) & ~ex_rd_load_unsigned_i;
-  wire load_unsigned_half = ex_rd_load_i & (ex_rd_load_size_i == `RSD_SIZE_HALF) &  ex_rd_load_unsigned_i;
-  wire load_signed_half   = ex_rd_load_i & (ex_rd_load_size_i == `RSD_SIZE_HALF) & ~ex_rd_load_unsigned_i;
-  wire load_signed_word   = ex_rd_load_i & (ex_rd_load_size_i == `RSD_SIZE_WORD);
+  wire load_unsigned_byte = ex_rd_load_i & (ex_rd_load_size_i == `LS_SIZE_BYTE) &  ex_rd_load_unsigned_i;
+  wire load_signed_byte   = ex_rd_load_i & (ex_rd_load_size_i == `LS_SIZE_BYTE) & ~ex_rd_load_unsigned_i;
+  wire load_unsigned_half = ex_rd_load_i & (ex_rd_load_size_i == `LS_SIZE_HALF) &  ex_rd_load_unsigned_i;
+  wire load_signed_half   = ex_rd_load_i & (ex_rd_load_size_i == `LS_SIZE_HALF) & ~ex_rd_load_unsigned_i;
+  wire load_signed_word   = ex_rd_load_i & (ex_rd_load_size_i == `LS_SIZE_WORD);
   
-  wire [`CORE_XLEN-1:0] data_load_unsigned_byte = {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b00}} & {24'd0, mem_data_rsp_rdata_i[7:0]}  |
-                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b01}} & {24'd0, mem_data_rsp_rdata_i[15:8]} |
-                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b10}} & {24'd0, mem_data_rsp_rdata_i[23:16]}|
-                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b11}} & {24'd0, mem_data_rsp_rdata_i[31:24]};
-  wire [`CORE_XLEN-1:0] data_load_signed_byte   = {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b00}} & {{24{mem_data_rsp_rdata_i[7]}},  mem_data_rsp_rdata_i[7:0]}  |
-                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b01}} & {{24{mem_data_rsp_rdata_i[15]}}, mem_data_rsp_rdata_i[15:8]} |
-                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b10}} & {{24{mem_data_rsp_rdata_i[23]}}, mem_data_rsp_rdata_i[23:16]}|
-                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b11}} & {{24{mem_data_rsp_rdata_i[31]}}, mem_data_rsp_rdata_i[31:24]};
-  wire [`CORE_XLEN-1:0] data_load_unsigned_half = {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b00}} & {16'd0, mem_data_rsp_rdata_i[15:0]} |
-                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b01}} & {16'd0, mem_data_rsp_rdata_i[23:8]} |
-                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b10}} & {16'd0, mem_data_rsp_rdata_i[31:16]}|
-                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b11}} & {16'd0, mem_data_rsp_rdata_i[31:16]}; // ?
-  wire [`CORE_XLEN-1:0] data_load_signed_half   = {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b00}} & {{16{mem_data_rsp_rdata_i[15]}}, mem_data_rsp_rdata_i[15:0]} |
-                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b01}} & {{16{mem_data_rsp_rdata_i[23]}}, mem_data_rsp_rdata_i[23:8]} |
-                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b10}} & {{16{mem_data_rsp_rdata_i[31]}}, mem_data_rsp_rdata_i[31:16]}|
-                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b11}} & {{16{mem_data_rsp_rdata_i[31]}}, mem_data_rsp_rdata_i[31:16]}; // ?
+  wire [`CORE_XLEN-1:0] data_load_unsigned_byte = {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b00}} & {24'd0, mem_data_rsp_rdata_i[7:0]}                            |
+                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b01}} & {24'd0, mem_data_rsp_rdata_i[15:8]}                           |
+                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b10}} & {24'd0, mem_data_rsp_rdata_i[23:16]}                          |
+                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b11}} & {24'd0, mem_data_rsp_rdata_i[31:24]}                          ;
+  wire [`CORE_XLEN-1:0] data_load_signed_byte   = {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b00}} & {{24{mem_data_rsp_rdata_i[7]}},  mem_data_rsp_rdata_i[7:0]}   |
+                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b01}} & {{24{mem_data_rsp_rdata_i[15]}}, mem_data_rsp_rdata_i[15:8]}  |
+                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b10}} & {{24{mem_data_rsp_rdata_i[23]}}, mem_data_rsp_rdata_i[23:16]} |
+                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b11}} & {{24{mem_data_rsp_rdata_i[31]}}, mem_data_rsp_rdata_i[31:24]} ;
+  wire [`CORE_XLEN-1:0] data_load_unsigned_half = {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b00}} & {16'd0, mem_data_rsp_rdata_i[15:0]}                           |
+                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b10}} & {16'd0, mem_data_rsp_rdata_i[31:16]}                          ;
+  wire [`CORE_XLEN-1:0] data_load_signed_half   = {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b00}} & {{16{mem_data_rsp_rdata_i[15]}}, mem_data_rsp_rdata_i[15:0]}  |
+                                                  {`CORE_XLEN{ex_rd_load_addr_i[1:0] == 2'b10}} & {{16{mem_data_rsp_rdata_i[31]}}, mem_data_rsp_rdata_i[31:16]} ;
   wire [`CORE_XLEN-1:0] data_load_word          = mem_data_rsp_rdata_i;
   
-  assign wb_rd_o = {`CORE_XLEN{load_unsigned_byte}} & data_load_unsigned_byte |
+  assign wb_rd_o =  {`CORE_XLEN{load_unsigned_byte}} & data_load_unsigned_byte |
                     {`CORE_XLEN{load_signed_byte  }} & data_load_signed_byte   |
                     {`CORE_XLEN{load_unsigned_half}} & data_load_unsigned_half |
                     {`CORE_XLEN{load_signed_half  }} & data_load_signed_half   |
@@ -79,8 +79,10 @@ module k423_wb_stage (
   // ---------------------------------------------------------------------------
   // Branch
   // ---------------------------------------------------------------------------
-  assign wb_bju_br_tkn_o = ex_bju_br_tkn_i;
-  assign wb_bju_br_pc_o  = ex_bju_br_pc_i;
+  assign wb_excp_br_tkn_o = ex_excp_br_tkn_i;
+  assign wb_excp_br_pc_o  = ex_excp_br_pc_i;
+  assign wb_bju_br_tkn_o  = ex_bju_br_tkn_i;
+  assign wb_bju_br_pc_o   = ex_bju_br_pc_i;
 
   // ---------------------------------------------------------------------------
   // Pipeline Handshake

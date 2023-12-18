@@ -36,8 +36,15 @@ module k423_core (
   // Wire Declaration
   // ---------------------------------------------------------------------------
   // pipeline control
-  logic                       pcu_flush_br_w;
-  logic                       pcu_stall_loaduse_w;
+  logic                       pcu_clear_pc_w;
+  logic                       pcu_clear_if_id_w;
+  logic                       pcu_clear_id_ex_w;
+  logic                       pcu_clear_ex_wb_w;
+
+  logic                       pcu_stall_pc_w;
+  logic                       pcu_stall_if_id_w;
+  logic                       pcu_stall_id_ex_w;
+  logic                       pcu_stall_ex_wb_w;
 
   // if stage
   logic                       if_stage_vld_w;
@@ -73,6 +80,7 @@ module k423_core (
   logic                       id_stage_rdy_w;
 
   logic [`CORE_ADDR_W-1:0]    id_pc_w;
+  logic [`CORE_INST_W-1:0]    id_inst_w;
 
   logic [`INST_GRP_W-1:0]     id_dec_grp_w;
   logic [`INST_INFO_W-1:0]    id_dec_info_w;
@@ -87,13 +95,19 @@ module k423_core (
   logic [`INST_RSDIDX_W-1:0]  id_dec_rd_idx_w;
   logic [`CORE_XLEN-1:0]      id_dec_imm_w;
 
-  logic [`RSD_SIZE_W-1:0]     id_dec_load_size_w;
-  logic [`RSD_SIZE_W-1:0]     id_dec_store_size_w;
+  logic [`LS_SIZE_W-1:0]      id_dec_load_size_w;
+  logic [`LS_SIZE_W-1:0]      id_dec_store_size_w;
+
+  logic [`EXCP_TYPE_W-1:0]    id_dec_excp_type_w;
+  logic [`INT_TYPE_W-1:0]     id_dec_int_type_w;
+  logic [`INST_CSRADR_W-1:0]  id_dec_csr_addr_w;
+  logic [`INST_ZIMM_W-1:0]    id_dec_csr_zimm_w;
 
   // id to ex pipeline
   logic                       id2ex_stage_vld_w;
 
   logic [`CORE_ADDR_W-1:0]    id2ex_pc_w;
+  logic [`CORE_INST_W-1:0]    id2ex_inst_w;
   logic [`INST_GRP_W-1:0]     id2ex_dec_grp_w;
   logic [`INST_INFO_W-1:0]    id2ex_dec_info_w;
   logic                       id2ex_dec_rs1_vld_w;
@@ -105,22 +119,29 @@ module k423_core (
   logic                       id2ex_dec_rd_vld_w;
   logic [`INST_RSDIDX_W-1:0]  id2ex_dec_rd_idx_w;
   logic [`CORE_XLEN-1:0]      id2ex_dec_imm_w;
-  logic [`RSD_SIZE_W-1:0]     id2ex_dec_load_size_w;
-  logic [`RSD_SIZE_W-1:0]     id2ex_dec_store_size_w;
+  logic [`LS_SIZE_W-1:0]      id2ex_dec_load_size_w;
+  logic [`LS_SIZE_W-1:0]      id2ex_dec_store_size_w;
+  logic [`EXCP_TYPE_W-1:0]    id2ex_dec_excp_type_w;
+  logic [`INT_TYPE_W-1:0]     id2ex_dec_int_type_w;
+  logic [`INST_CSRADR_W-1:0]  id2ex_dec_csr_addr_w;
+  logic [`INST_ZIMM_W-1:0]    id2ex_dec_csr_zimm_w;
   
   // ex stage
   logic                       ex_stage_vld_w;
   logic                       ex_stage_rdy_w;
 
   logic [`CORE_ADDR_W-1:0]    ex_pc_w;
+  logic [`CORE_INST_W-1:0]    ex_inst_w;
 
   logic                       ex_rd_vld_w;
   logic [`INST_RSDIDX_W-1:0]  ex_rd_idx_w;
   logic [`CORE_XLEN-1:0]      ex_rd_w;
   logic                       ex_rd_load_w;
-  logic [`RSD_SIZE_W-1:0]     ex_rd_load_size_w;
+  logic [`LS_SIZE_W-1:0]      ex_rd_load_size_w;
   logic                       ex_rd_load_unsigned_w;
 
+  logic                       ex_excp_br_tkn_w;
+  logic [`CORE_XLEN-1:0]      ex_excp_br_pc_w;
   logic                       ex_bju_br_tkn_w;
   logic [`CORE_XLEN-1:0]      ex_bju_br_pc_w;
 
@@ -144,9 +165,11 @@ module k423_core (
   logic [`INST_RSDIDX_W-1:0]  ex2wb_rd_idx_w;
   logic [`CORE_XLEN-1:0]      ex2wb_rd_w;
   logic                       ex2wb_rd_load_w;
-  logic [`RSD_SIZE_W-1:0]     ex2wb_rd_load_size_w;
+  logic [`LS_SIZE_W-1:0]      ex2wb_rd_load_size_w;
   logic                       ex2wb_rd_load_unsigned_w;
   logic [`CORE_ADDR_W-1:0]    ex2wb_rd_load_addr_w;
+  logic                       ex2wb_excp_br_tkn_w;
+  logic [`CORE_XLEN-1:0]      ex2wb_excp_br_pc_w;
   logic                       ex2wb_bju_br_tkn_w;
   logic [`CORE_XLEN-1:0]      ex2wb_bju_br_pc_w;
 
@@ -168,6 +191,8 @@ module k423_core (
 
   logic                       wb_bju_br_tkn_w;
   logic [`CORE_XLEN-1:0]      wb_bju_br_pc_w;
+  logic                       wb_excp_br_tkn_w;
+  logic [`CORE_XLEN-1:0]      wb_excp_br_pc_w;
   
   // debug interface
   assign debug_wb_pc_o        = wb_pc_w;
@@ -191,9 +216,17 @@ module k423_core (
     .ex_rd_load_i        ( ex_rd_load_w        ),
     // branch taken
     .wb_bju_br_tkn_i     ( wb_bju_br_tkn_w     ),
+    .wb_excp_br_tkn_i    ( wb_excp_br_tkn_w    ),
     // pipeline control signals
-    .pcu_stall_loaduse_o ( pcu_stall_loaduse_w ),
-    .pcu_flush_br_o      ( pcu_flush_br_w      )
+    .pcu_clear_pc_o      ( pcu_clear_pc_w      ),
+    .pcu_clear_if_id_o   ( pcu_clear_if_id_w   ),
+    .pcu_clear_id_ex_o   ( pcu_clear_id_ex_w   ),
+    .pcu_clear_ex_wb_o   ( pcu_clear_ex_wb_w   ),
+
+    .pcu_stall_pc_o      ( pcu_stall_pc_w      ),
+    .pcu_stall_if_id_o   ( pcu_stall_if_id_w   ),
+    .pcu_stall_id_ex_o   ( pcu_stall_id_ex_w   ),
+    .pcu_stall_ex_wb_o   ( pcu_stall_ex_wb_w   )
   );
 
   // ---------------------------------------------------------------------------
@@ -203,12 +236,14 @@ module k423_core (
     .clk_i                ( clk_i                ),
     .rst_n_i              ( rst_n_i              ),
     // pipeline control
-    .pcu_stall_loaduse_i  ( pcu_stall_loaduse_w  ),
-    .pcu_flush_br_i       ( pcu_flush_br_w       ),
+    .pcu_clear_pc_i       ( pcu_clear_pc_w       ),
+    .pcu_stall_pc_i       ( pcu_stall_pc_w       ),
     // pipeline handshake
     .if_stage_vld_o       ( if_stage_vld_w       ),
     .id_stage_rdy_i       ( id_stage_rdy_w       ),
     // branch
+    .wb_excp_br_tkn_i     ( wb_excp_br_tkn_w     ),
+    .wb_excp_br_pc_i      ( wb_excp_br_pc_w      ),
     .wb_bju_br_tkn_i      ( wb_bju_br_tkn_w      ),
     .wb_bju_br_pc_i       ( wb_bju_br_pc_w       ),
     // inst mem interface
@@ -231,8 +266,8 @@ module k423_core (
     .clk_i                ( clk_i               ),
     .rst_n_i              ( rst_n_i             ),
     // pipeline control
-    .pcu_stall_loaduse_i  ( pcu_stall_loaduse_w ),
-    .pcu_flush_br_i       ( pcu_flush_br_w      ),
+    .pcu_clear_if_id_i    ( pcu_clear_if_id_w   ),
+    .pcu_stall_if_id_i    ( pcu_stall_if_id_w   ),
     // pipeline handshake
     .if_stage_vld_i       ( if_stage_vld_w      ),
     .id_stage_rdy_i       ( id_stage_rdy_w      ),
@@ -261,6 +296,7 @@ module k423_core (
     .if_inst_i           ( if2id_inst_w        ),
     // decode information
     .id_pc_o             ( id_pc_w             ),
+    .id_inst_o           ( id_inst_w           ),
     .id_dec_grp_o        ( id_dec_grp_w        ),
     .id_dec_info_o       ( id_dec_info_w       ),
     .id_dec_rs1_vld_o    ( id_dec_rs1_vld_w    ),
@@ -271,7 +307,11 @@ module k423_core (
     .id_dec_rd_vld_o     ( id_dec_rd_vld_w     ),
     .id_dec_load_size_o  ( id_dec_load_size_w  ),
     .id_dec_rd_idx_o     ( id_dec_rd_idx_w     ),
-    .id_dec_imm_o        ( id_dec_imm_w        )
+    .id_dec_imm_o        ( id_dec_imm_w        ),
+    .id_dec_excp_type_o  ( id_dec_excp_type_w  ),
+    .id_dec_int_type_o   ( id_dec_int_type_w   ),
+    .id_dec_csr_addr_o   ( id_dec_csr_addr_w   ),
+    .id_dec_csr_zimm_o   ( id_dec_csr_zimm_w   )
   );
 
   // ---------------------------------------------------------------------------
@@ -308,14 +348,15 @@ module k423_core (
     .clk_i                ( clk_i                  ),
     .rst_n_i              ( rst_n_i                ),
     // pipeline control
-    .pcu_stall_loaduse_i  ( pcu_stall_loaduse_w    ),
-    .pcu_flush_br_i       ( pcu_flush_br_w         ),
+    .pcu_clear_id_ex_i    ( pcu_clear_id_ex_w      ),
+    .pcu_stall_id_ex_i    ( pcu_stall_id_ex_w      ),
     // pipeline handshake
     .id_stage_vld_i       ( id_stage_vld_w         ),
     .ex_stage_rdy_i       ( id_stage_rdy_w         ),
     .id2ex_stage_vld_o    ( id2ex_stage_vld_w      ),
     // id stage
     .id_pc_i              ( id_pc_w                ),
+    .id_inst_i            ( id_inst_w              ),
     .id_dec_grp_i         ( id_dec_grp_w           ),
     .id_dec_info_i        ( id_dec_info_w          ),
     .id_dec_rs1_vld_i     ( id_dec_rs1_vld_w       ),
@@ -329,8 +370,13 @@ module k423_core (
     .id_dec_load_size_i   ( id_dec_load_size_w     ),
     .id_dec_rd_idx_i      ( id_dec_rd_idx_w        ),
     .id_dec_imm_i         ( id_dec_imm_w           ),
+    .id_dec_excp_type_i   ( id_dec_excp_type_w     ),
+    .id_dec_int_type_i    ( id_dec_int_type_w      ),
+    .id_dec_csr_addr_i    ( id_dec_csr_addr_w      ),
+    .id_dec_csr_zimm_i    ( id_dec_csr_zimm_w      ),
     // ex stage
     .ex_pc_o              ( id2ex_pc_w             ),
+    .ex_inst_o            ( id2ex_inst_w           ),
     .ex_dec_grp_o         ( id2ex_dec_grp_w        ),
     .ex_dec_info_o        ( id2ex_dec_info_w       ),
     .ex_dec_rs1_vld_o     ( id2ex_dec_rs1_vld_w    ),
@@ -343,7 +389,11 @@ module k423_core (
     .ex_dec_rd_vld_o      ( id2ex_dec_rd_vld_w     ),
     .ex_dec_load_size_o   ( id2ex_dec_load_size_w  ),
     .ex_dec_rd_idx_o      ( id2ex_dec_rd_idx_w     ),
-    .ex_dec_imm_o         ( id2ex_dec_imm_w        )
+    .ex_dec_imm_o         ( id2ex_dec_imm_w        ),
+    .ex_dec_excp_type_o   ( id2ex_dec_excp_type_w  ),
+    .ex_dec_int_type_o    ( id2ex_dec_int_type_w   ),
+    .ex_dec_csr_addr_o    ( id2ex_dec_csr_addr_w   ),
+    .ex_dec_csr_zimm_o    ( id2ex_dec_csr_zimm_w   )
   );
 
   // ---------------------------------------------------------------------------
@@ -359,6 +409,7 @@ module k423_core (
     .wb_stage_rdy_i         ( wb_stage_rdy_w         ),
     // id stage
     .id_pc_i                ( id2ex_pc_w             ),
+    .id_inst_i              ( id2ex_inst_w           ),
     .id_dec_grp_i           ( id2ex_dec_grp_w        ),
     .id_dec_info_i          ( id2ex_dec_info_w       ),
     .id_dec_rs1_vld_i       ( id2ex_dec_rs1_vld_w    ),
@@ -372,6 +423,10 @@ module k423_core (
     .id_dec_load_size_i     ( id2ex_dec_load_size_w  ),
     .id_dec_rd_idx_i        ( id2ex_dec_rd_idx_w     ),
     .id_dec_imm_i           ( id2ex_dec_imm_w        ),
+    .id_dec_excp_type_i     ( id2ex_dec_excp_type_w  ),
+    .id_dec_int_type_i      ( id2ex_dec_int_type_w   ),
+    .id_dec_csr_addr_i      ( id2ex_dec_csr_addr_w   ),
+    .id_dec_csr_zimm_i      ( id2ex_dec_csr_zimm_w   ),
     // rd information
     .ex_pc_o                ( ex_pc_w                ),
     .ex_rd_vld_o            ( ex_rd_vld_w            ),
@@ -381,6 +436,8 @@ module k423_core (
     .ex_rd_load_size_o      ( ex_rd_load_size_w      ),
     .ex_rd_load_unsigned_o  ( ex_rd_load_unsigned_w  ),
     // branch
+    .ex_excp_br_tkn_o       ( ex_excp_br_tkn_w       ),
+    .ex_excp_br_pc_o        ( ex_excp_br_pc_w        ),
     .ex_bju_br_tkn_o        ( ex_bju_br_tkn_w        ),
     .ex_bju_br_pc_o         ( ex_bju_br_pc_w         ),
     // data mem interface
@@ -398,8 +455,8 @@ module k423_core (
     .clk_i                  ( clk_i                     ),
     .rst_n_i                ( rst_n_i                   ),
     // pipeline control
-    .pcu_stall_loaduse_i    ( pcu_stall_loaduse_w       ),
-    .pcu_flush_br_i         ( pcu_flush_br_w            ),
+    .pcu_clear_ex_wb_i      ( pcu_clear_ex_wb_w         ),
+    .pcu_stall_ex_wb_i      ( pcu_stall_ex_wb_w         ),
     // pipeline handshake
     .ex_stage_vld_i         ( ex_stage_vld_w            ),
     .wb_stage_rdy_i         ( ex_stage_rdy_w            ),
@@ -413,6 +470,8 @@ module k423_core (
     .ex_rd_load_size_i      ( ex_rd_load_size_w         ),
     .ex_rd_load_unsigned_i  ( ex_rd_load_unsigned_w     ),
     .ex_rd_load_addr_i      ( ex_mem_req_addr_w         ),
+    .ex_excp_br_tkn_i       ( ex_excp_br_tkn_w          ),
+    .ex_excp_br_pc_i        ( ex_excp_br_pc_w           ),
     .ex_bju_br_tkn_i        ( ex_bju_br_tkn_w           ),
     .ex_bju_br_pc_i         ( ex_bju_br_pc_w            ),
     // wb stage
@@ -424,6 +483,8 @@ module k423_core (
     .wb_rd_load_size_o      ( ex2wb_rd_load_size_w      ),
     .wb_rd_load_unsigned_o  ( ex2wb_rd_load_unsigned_w  ),
     .wb_rd_load_addr_o      ( ex2wb_rd_load_addr_w      ),
+    .wb_excp_br_tkn_o       ( ex2wb_excp_br_tkn_w       ),
+    .wb_excp_br_pc_o        ( ex2wb_excp_br_pc_w        ),
     .wb_bju_br_tkn_o        ( ex2wb_bju_br_tkn_w        ),
     .wb_bju_br_pc_o         ( ex2wb_bju_br_pc_w         )
   );
@@ -448,6 +509,8 @@ module k423_core (
     .ex_rd_load_unsigned_i  ( ex2wb_rd_load_unsigned_w ),
     .ex_rd_load_addr_i      ( ex2wb_rd_load_addr_w     ),
 
+    .ex_excp_br_tkn_i       ( ex2wb_excp_br_tkn_w      ),
+    .ex_excp_br_pc_i        ( ex2wb_excp_br_pc_w       ),
     .ex_bju_br_tkn_i        ( ex2wb_bju_br_tkn_w       ),
     .ex_bju_br_pc_i         ( ex2wb_bju_br_pc_w        ),
     // memory response
@@ -459,6 +522,8 @@ module k423_core (
     .wb_rd_vld_o            ( wb_rd_vld_w              ),
     .wb_rd_idx_o            ( wb_rd_idx_w              ),
     
+    .wb_excp_br_tkn_o       ( wb_excp_br_tkn_w         ),
+    .wb_excp_br_pc_o        ( wb_excp_br_pc_w          ),
     .wb_bju_br_tkn_o        ( wb_bju_br_tkn_w          ),
     .wb_bju_br_pc_o         ( wb_bju_br_pc_w           )
   );

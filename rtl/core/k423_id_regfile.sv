@@ -25,7 +25,7 @@ module k423_id_regfile (
   input  logic                      id_rs1_vld_i,
   input  logic [`INST_RSDIDX_W-1:0] id_rs1_idx_i,
   input  logic                      id_rs2_vld_i,
-  input  logic [`RSD_SIZE_W-1:0]    id_store_size_i,
+  input  logic [`LS_SIZE_W-1:0]     id_store_size_i,
   input  logic [`INST_RSDIDX_W-1:0] id_rs2_idx_i,
   output logic [`CORE_XLEN-1:0]     id_rs1_data_o,
   output logic [`CORE_XLEN-1:0]     id_rs2_data_o
@@ -56,35 +56,35 @@ module k423_id_regfile (
   // sign extend regfile data when store
   wire [`CORE_XLEN-1:0] rs1_reg_data_w = regfile_rs1_w;
   wire [`CORE_XLEN-1:0] rs2_reg_data_w =
-                          {`CORE_XLEN{id_rs2_vld_i & (id_store_size_i == `RSD_SIZE_BYTE)}} & {{24{regfile_rs2_w[7]}},  regfile_rs2_w[7:0]} |
-                          {`CORE_XLEN{id_rs2_vld_i & (id_store_size_i == `RSD_SIZE_HALF)}} & {{16{regfile_rs2_w[15]}}, regfile_rs2_w[15:0]} |
-                          {`CORE_XLEN{id_rs2_vld_i & (id_store_size_i == `RSD_SIZE_WORD)}} & regfile_rs2_w;
+                          {`CORE_XLEN{id_rs2_vld_i & (id_store_size_i == `LS_SIZE_BYTE)}} & {{24{regfile_rs2_w[7]}},  regfile_rs2_w[7:0]} |
+                          {`CORE_XLEN{id_rs2_vld_i & (id_store_size_i == `LS_SIZE_HALF)}} & {{16{regfile_rs2_w[15]}}, regfile_rs2_w[15:0]} |
+                          {`CORE_XLEN{id_rs2_vld_i & (id_store_size_i == `LS_SIZE_WORD)}} & regfile_rs2_w;
 
   // read from forward
   // forward taken
-  wire rs1_ex_fwd_tkn_w  = id_rs1_vld_i & ex_fwd_rd_vld_i  &
-                          (id_rs1_idx_i == ex_fwd_rd_idx_i)  & (id_rs1_idx_i  != '0);
-  wire rs1_wb_fwd_tkn_w  = id_rs1_vld_i & wb_fwd_rd_vld_i  &
-                          (id_rs1_idx_i == wb_fwd_rd_idx_i)  & (id_rs1_idx_i  != '0);
+  wire rs1_ex_fwd_tkn_w  = id_rs1_vld_i & ex_fwd_rd_vld_i   &
+                          (id_rs1_idx_i == ex_fwd_rd_idx_i) & (id_rs1_idx_i  != '0);
+  wire rs1_wb_fwd_tkn_w  = id_rs1_vld_i & wb_fwd_rd_vld_i   &
+                          (id_rs1_idx_i == wb_fwd_rd_idx_i) & (id_rs1_idx_i  != '0);
 
-  wire rs2_ex_fwd_tkn_w  = id_rs2_vld_i & ex_fwd_rd_vld_i  &
-                          (id_rs2_idx_i == ex_fwd_rd_idx_i)  & (id_rs2_idx_i  != '0);
-  wire rs2_wb_fwd_tkn_w  = id_rs2_vld_i & wb_fwd_rd_vld_i  &
-                          (id_rs2_idx_i == wb_fwd_rd_idx_i)  & (id_rs2_idx_i  != '0);
+  wire rs2_ex_fwd_tkn_w  = id_rs2_vld_i & ex_fwd_rd_vld_i   &
+                          (id_rs2_idx_i == ex_fwd_rd_idx_i) & (id_rs2_idx_i  != '0);
+  wire rs2_wb_fwd_tkn_w  = id_rs2_vld_i & wb_fwd_rd_vld_i   &
+                          (id_rs2_idx_i == wb_fwd_rd_idx_i) & (id_rs2_idx_i  != '0);
   // sign extend forward data when store
   wire [`CORE_XLEN-1:0] rs1_ex_fwd_data_w  = ex_fwd_rd_data_i;
   wire [`CORE_XLEN-1:0] rs1_wb_fwd_data_w  = wb_fwd_rd_data_i;
 
   wire [`CORE_XLEN-1:0] rs2_ex_fwd_data_w  =
-                          {`CORE_XLEN{id_store_size_i == `RSD_SIZE_BYTE}} & {{24{ex_fwd_rd_data_i[7]}},  ex_fwd_rd_data_i[7:0]}  |
-                          {`CORE_XLEN{id_store_size_i == `RSD_SIZE_HALF}} & {{16{ex_fwd_rd_data_i[15]}}, ex_fwd_rd_data_i[15:0]} |
-                          {`CORE_XLEN{id_store_size_i == `RSD_SIZE_WORD}} & ex_fwd_rd_data_i;
+                          {`CORE_XLEN{id_store_size_i == `LS_SIZE_BYTE}} & {{24{ex_fwd_rd_data_i[7]}},  ex_fwd_rd_data_i[7:0]}  |
+                          {`CORE_XLEN{id_store_size_i == `LS_SIZE_HALF}} & {{16{ex_fwd_rd_data_i[15]}}, ex_fwd_rd_data_i[15:0]} |
+                          {`CORE_XLEN{id_store_size_i == `LS_SIZE_WORD}} & ex_fwd_rd_data_i;
   wire [`CORE_XLEN-1:0] rs2_wb_fwd_data_w  =
-                          {`CORE_XLEN{id_store_size_i == `RSD_SIZE_BYTE}} & {{24{wb_fwd_rd_data_i[7]}},  wb_fwd_rd_data_i[7:0]}  |
-                          {`CORE_XLEN{id_store_size_i == `RSD_SIZE_HALF}} & {{16{wb_fwd_rd_data_i[15]}}, wb_fwd_rd_data_i[15:0]} |
-                          {`CORE_XLEN{id_store_size_i == `RSD_SIZE_WORD}} & wb_fwd_rd_data_i;
+                          {`CORE_XLEN{id_store_size_i == `LS_SIZE_BYTE}} & {{24{wb_fwd_rd_data_i[7]}},  wb_fwd_rd_data_i[7:0]}  |
+                          {`CORE_XLEN{id_store_size_i == `LS_SIZE_HALF}} & {{16{wb_fwd_rd_data_i[15]}}, wb_fwd_rd_data_i[15:0]} |
+                          {`CORE_XLEN{id_store_size_i == `LS_SIZE_WORD}} & wb_fwd_rd_data_i;
 
-  // priority: ex > wb
+  // priority: ex > wb > regfile
   assign id_rs1_data_o = rs1_ex_fwd_tkn_w  ? rs1_ex_fwd_data_w  :
                          rs1_wb_fwd_tkn_w  ? rs1_wb_fwd_data_w  :
                                              rs1_reg_data_w     ;
