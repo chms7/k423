@@ -145,12 +145,19 @@ module k423_id_decode (
   wire dec_bju_jal      = inst_opcode_65_11 & inst_opcode_42_011;
   wire dec_bju_jalr     = inst_opcode_65_11 & inst_opcode_42_001 & inst_funct3_000;
 
+  // CALL: JAL/JALR & rd is x1 or x5
+  wire dec_bju_call     = (dec_bju_jal | dec_bju_jalr) &
+                          ((inst_rd_idx == 5'd1) | (inst_rd_idx == 5'd5));
+  // RET:  JALR & rs1 is x1 or x5 & rd is not rs1
+  wire dec_bju_ret      = dec_bju_jalr & (inst_rs1_idx == 5'd1 | inst_rs1_idx == 5'd5) &
+                          (inst_rd_idx != inst_rs1_idx);
+
   wire dec_bju_unsigned = inst_funct3[1];
 
   wire                        dec_bju      = dec_bju_bxx | dec_bju_jal | dec_bju_jalr;
-  wire [`INST_INFO_BJU_W-1:0] dec_bju_info = {dec_bju_unsigned, dec_bju_jalr, dec_bju_jal,
-                                              dec_bju_bge, dec_bju_blt, dec_bju_bne, dec_bju_beq,
-                                              dec_bju_bxx};
+  wire [`INST_INFO_BJU_W-1:0] dec_bju_info = {dec_bju_unsigned, dec_bju_ret, dec_bju_call, dec_bju_jalr,
+                                              dec_bju_jal, dec_bju_bge, dec_bju_blt, dec_bju_bne,
+                                              dec_bju_beq, dec_bju_bxx};
 
   // ---------------------------------------------------------------------------
   // CSR

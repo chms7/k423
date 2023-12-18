@@ -66,7 +66,7 @@
 `define INST_INFO_LSU_SIZE_WORD     4
 `define INST_INFO_LSU_UNSIGNED      5
 
-`define INST_INFO_BJU_W             8
+`define INST_INFO_BJU_W             10
 `define INST_INFO_BJU_BXX           0
 `define INST_INFO_BJU_BEQ           1
 `define INST_INFO_BJU_BNE           2
@@ -74,7 +74,9 @@
 `define INST_INFO_BJU_BGE           4
 `define INST_INFO_BJU_JAL           5
 `define INST_INFO_BJU_JALR          6
-`define INST_INFO_BJU_UNSIGNED      7
+`define INST_INFO_BJU_CALL          7
+`define INST_INFO_BJU_RET           8
+`define INST_INFO_BJU_UNSIGNED      9
 
 `define INST_INFO_CSR_W             4
 `define INST_INFO_CSR_CSRRW         0
@@ -122,3 +124,27 @@
 `define INT_CODE_M_TIMER            7
 `define INT_CODE_S_EXT              9
 `define INT_CODE_M_EXT              11
+
+// ---------------------------------------------------------------------------
+// Branch Prediction
+// ---------------------------------------------------------------------------
+// PHT
+`define PHT_NTKN_STRONG             2'b00
+`define PHT_NTKN_WEAK               2'b01
+`define PHT_TKN_WEAK                2'b11
+`define PHT_TKN_STRONG              2'b10
+
+// BTB
+`define BTB_VLD_W                   1
+`define BTB_TAG_W                   4
+`define BTB_BTA_W                   32
+`define BTB_WIDTH                   `BTB_VLD_W+`BTB_TAG_W+`BTB_BTA_W
+
+`define BTB_VLD_BITS                `BTB_VLD_W-1:0
+`define BTB_TAG_BITS                `BTB_TAG_W+`BTB_VLD_W-1:`BTB_VLD_W
+`define BTB_BTA_BITS                `BTB_BTA_W+`BTB_TAG_W+`BTB_VLD_W-1:`BTB_TAG_W+`BTB_VLD_W
+
+// RAS
+`define BR_TYPE_W                   2
+`define BR_TYPE_CALL                0
+`define BR_TYPE_RET                 1

@@ -18,6 +18,10 @@ module k423_id_stage (
   // if stage
   input  logic [`CORE_ADDR_W-1:0]   if_pc_i,
   input  logic [`CORE_INST_W-1:0]   if_inst_i,
+
+  input  logic                      if_bpu_prd_tkn_i,
+  input  logic [`CORE_ADDR_W-1:0]   if_bpu_prd_pc_i,
+  input  logic [1:0]                if_bpu_prd_sat_cnt_i,
   // decode information
   output logic [`CORE_ADDR_W-1:0]   id_pc_o,
   output logic [`CORE_INST_W-1:0]   id_inst_o,
@@ -38,7 +42,11 @@ module k423_id_stage (
   output logic [`EXCP_TYPE_W-1:0]   id_dec_excp_type_o,
   output logic [`INT_TYPE_W-1:0]    id_dec_int_type_o,
   output logic [`INST_CSRADR_W-1:0] id_dec_csr_addr_o,
-  output logic [`INST_ZIMM_W-1:0]   id_dec_csr_zimm_o
+  output logic [`INST_ZIMM_W-1:0]   id_dec_csr_zimm_o,
+
+  output logic                      id_bpu_prd_tkn_o,
+  output logic [`CORE_ADDR_W-1:0]   id_bpu_prd_pc_o,
+  output logic [1:0]                id_bpu_prd_sat_cnt_o
 );
   // ---------------------------------------------------------------------------
   // Decode
@@ -66,8 +74,11 @@ module k423_id_stage (
     .dec_csr_zimm_o   ( id_dec_csr_zimm_o   )
   );
   
-  assign id_pc_o   = if_pc_i;
-  assign id_inst_o = if_inst_i;
+  assign id_pc_o              = if_pc_i;
+  assign id_inst_o            = if_inst_i;
+  assign id_bpu_prd_tkn_o     = if_bpu_prd_tkn_i;
+  assign id_bpu_prd_pc_o      = if_bpu_prd_pc_i;
+  assign id_bpu_prd_sat_cnt_o = if_bpu_prd_sat_cnt_i;
 
   // ---------------------------------------------------------------------------
   // Pipeline Handshake

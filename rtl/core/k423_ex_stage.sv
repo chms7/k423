@@ -38,6 +38,10 @@ module k423_ex_stage (
   input  logic [`INT_TYPE_W-1:0]    id_dec_int_type_i,
   input  logic [`INST_CSRADR_W-1:0] id_dec_csr_addr_i,
   input  logic [`INST_ZIMM_W-1:0]   id_dec_csr_zimm_i,
+
+  input  logic                      id_bpu_prd_tkn_i,
+  input  logic [`CORE_ADDR_W-1:0]   id_bpu_prd_pc_i,
+  input  logic [1:0]                id_bpu_prd_sat_cnt_i,
   // ex stage
   output logic [`CORE_ADDR_W-1:0]   ex_pc_o,
   // rd information
@@ -50,8 +54,13 @@ module k423_ex_stage (
   // branch
   output logic                      ex_excp_br_tkn_o,
   output logic [`CORE_XLEN-1:0]     ex_excp_br_pc_o,
-  output logic                      ex_bju_br_tkn_o,
-  output logic [`CORE_XLEN-1:0]     ex_bju_br_pc_o,
+  output logic                      ex_bju_upd_vld_o,
+  output logic                      ex_bju_upd_mis_o,
+  output logic                      ex_bju_upd_tkn_o,
+  output logic [`BR_TYPE_W-1:0]     ex_bju_upd_type_o,
+  output logic [`CORE_XLEN-1:0]     ex_bju_upd_src_pc_o,
+  output logic [`CORE_XLEN-1:0]     ex_bju_upd_tgt_pc_o,
+  output logic [1:0]                ex_bju_upd_sat_cnt_o,
   // data mem interface
   output logic                      ex_mem_req_vld_o,
   input  logic                      ex_mem_req_rdy_i,
@@ -116,26 +125,42 @@ module k423_ex_stage (
   // ---------------------------------------------------------------------------
   // BJU
   // ---------------------------------------------------------------------------
-  logic                      bju_br_tkn_w;
-  logic [`CORE_XLEN-1:0]     bju_br_pc_w;
-  logic                      bju_jal_rd_tkn_w;
-  logic [`CORE_XLEN-1:0]     bju_jal_rd_w;
+  logic                  bju_upd_vld_w;
+  logic                  bju_upd_mis_w;
+  logic                  bju_upd_tkn_w;
+  logic [`BR_TYPE_W-1:0] bju_upd_type_w;
+  logic [`CORE_XLEN-1:0] bju_upd_src_pc_w;
+  logic [`CORE_XLEN-1:0] bju_upd_tgt_pc_w;
+  logic [1:0]            bju_upd_sat_cnt_w;
+
+  logic                  bju_jal_rd_tkn_w;
+  logic [`CORE_XLEN-1:0] bju_jal_rd_w;
 
   k423_ex_bju  u_k423_ex_bju (
-    .clk_i            ( clk_i            ),
-    .rst_n_i          ( rst_n_i          ),
+    .clk_i             ( clk_i                ),
+    .rst_n_i           ( rst_n_i              ),
 
-    .pc_i             ( id_pc_i          ),
-    .dec_grp_i        ( id_dec_grp_i     ),
-    .dec_info_i       ( id_dec_info_i    ),
-    .dec_rs1_i        ( id_dec_rs1_i     ),
-    .dec_rs2_i        ( id_dec_rs2_i     ),
-    .dec_imm_i        ( id_dec_imm_i     ),
+    .pc_i              ( id_pc_i              ),
+    .dec_grp_i         ( id_dec_grp_i         ),
+    .dec_info_i        ( id_dec_info_i        ),
+    .dec_rs1_i         ( id_dec_rs1_i         ),
+    .dec_rs2_i         ( id_dec_rs2_i         ),
+    .dec_imm_i         ( id_dec_imm_i         ),
+    
+    .bpu_prd_tkn_i     ( id_bpu_prd_tkn_i     ),
+    .bpu_prd_pc_i      ( id_bpu_prd_pc_i      ),
+    .bpu_prd_sat_cnt_i ( id_bpu_prd_sat_cnt_i ),
 
-    .bju_br_tkn_o     ( bju_br_tkn_w     ),
-    .bju_br_pc_o      ( bju_br_pc_w      ),
-    .bju_jal_rd_tkn_o ( bju_jal_rd_tkn_w ),
-    .bju_jal_rd_o     ( bju_jal_rd_w     )
+    .bju_upd_vld_o     ( bju_upd_vld_w        ),
+    .bju_upd_mis_o     ( bju_upd_mis_w        ),
+    .bju_upd_tkn_o     ( bju_upd_tkn_w        ),
+    .bju_upd_type_o    ( bju_upd_type_w       ),
+    .bju_upd_src_pc_o  ( bju_upd_src_pc_w     ),
+    .bju_upd_tgt_pc_o  ( bju_upd_tgt_pc_w     ),
+    .bju_upd_sat_cnt_o ( bju_upd_sat_cnt_w    ),
+    
+    .bju_jal_rd_tkn_o  ( bju_jal_rd_tkn_w     ),
+    .bju_jal_rd_o      ( bju_jal_rd_w         )
   );
 
   // ---------------------------------------------------------------------------
@@ -181,7 +206,6 @@ module k423_ex_stage (
 
 `endif
 
-
   // ---------------------------------------------------------------------------
   // Rd Select
   // ---------------------------------------------------------------------------
@@ -195,8 +219,13 @@ module k423_ex_stage (
   assign ex_rd_load_size_o      = id_dec_load_size_i;
   assign ex_rd_load_unsigned_o  = lsu_rd_load_unsigned_w;
   
-  assign ex_bju_br_tkn_o        = bju_br_tkn_w;
-  assign ex_bju_br_pc_o         = bju_br_pc_w;
+  assign ex_bju_upd_vld_o       = bju_upd_vld_w;
+  assign ex_bju_upd_mis_o       = bju_upd_mis_w;
+  assign ex_bju_upd_tkn_o       = bju_upd_tkn_w;
+  assign ex_bju_upd_type_o      = bju_upd_type_w;
+  assign ex_bju_upd_src_pc_o    = bju_upd_src_pc_w;
+  assign ex_bju_upd_tgt_pc_o    = bju_upd_tgt_pc_w;
+  assign ex_bju_upd_sat_cnt_o   = bju_upd_sat_cnt_w;
   
   assign ex_excp_br_tkn_o       = csr_mepc_tkn_w  | csr_mtvec_tkn_w;
   assign ex_excp_br_pc_o        = csr_mepc_tkn_w  ? csr_mepc_w     :

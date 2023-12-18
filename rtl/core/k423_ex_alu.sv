@@ -28,8 +28,8 @@ module k423_ex_alu (
   // when need to subtract, invert the second operand and set cin to 1
   wire alu_adder_sub = dec_info_i[`INST_INFO_ALU_SUB] | dec_info_i[`INST_INFO_ALU_SLT] | dec_info_i[`INST_INFO_ALU_SLTU];
   wire [`CORE_XLEN-1:0] alu_adder_op1 = dec_info_i[`INST_INFO_ALU_AUIPC]  ? pc_i       : dec_rs1_i;
-  wire [`CORE_XLEN-1:0] alu_adder_op2 = dec_info_i[`INST_INFO_ALU_RS2IMM] ? (alu_adder_sub ? ~dec_imm_i : dec_imm_i) :
-                                                                            (alu_adder_sub ? ~dec_rs2_i : dec_rs2_i);
+  wire [`CORE_XLEN-1:0] alu_adder_op2 = dec_info_i[`INST_INFO_ALU_RS2IMM] ? (alu_adder_sub ? ~dec_imm_i : dec_imm_i)
+                                                                          : (alu_adder_sub ? ~dec_rs2_i : dec_rs2_i);
   wire [`CORE_XLEN-1:0] alu_adder_res;
   wire                  alu_adder_cout;
 

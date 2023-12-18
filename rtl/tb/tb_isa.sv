@@ -10,10 +10,10 @@
 `include "k423_config.svh"
 
 // Test Options
-`define TEST_RV32UI   1
-// `define TEST_RV32UM   1
-`define TEST_RV32MI   1
-// `define DEBUG_INFO_WB 1
+`define TEST_RV32UI
+// `define TEST_RV32UM
+`define TEST_RV32MI
+// `define DEBUG_INFO_WB
 
 module tb_isa;
 

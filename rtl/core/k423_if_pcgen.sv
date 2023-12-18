@@ -19,7 +19,7 @@ module k423_if_pcgen (
   // branch
   input logic                      excp_br_tkn_i,
   input logic [`CORE_XLEN-1:0]     excp_br_pc_i,
-  input logic                      bju_br_tkn_i,
+  input logic                      bju_br_mis_i,
   input logic [`CORE_XLEN-1:0]     bju_br_pc_i,
   input logic                      bpu_br_tkn_i,
   input logic [`CORE_XLEN-1:0]     bpu_br_pc_i,
@@ -39,8 +39,10 @@ module k423_if_pcgen (
     .cout (              )
   );
 
+  // priority: excp > bju mis > bpu > norm
   assign next_pc =  excp_br_tkn_i ? excp_br_pc_i :
-                    bju_br_tkn_i  ? bju_br_pc_i  :
+                    bju_br_mis_i  ? bju_br_pc_i  :
+                    bpu_br_tkn_i  ? bpu_br_pc_i  :
                                     norm_next_pc ;
 
   // update pc

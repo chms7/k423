@@ -17,9 +17,19 @@ module k423_ex_bju (
   input  logic [`CORE_XLEN-1:0]     dec_rs1_i,
   input  logic [`CORE_XLEN-1:0]     dec_rs2_i,
   input  logic [`CORE_XLEN-1:0]     dec_imm_i,
+
+  input  logic                      bpu_prd_tkn_i,
+  input  logic [`CORE_ADDR_W-1:0]   bpu_prd_pc_i,
+  input  logic [1:0]                bpu_prd_sat_cnt_i,
   // bju
-  output logic                      bju_br_tkn_o,
-  output logic [`CORE_XLEN-1:0]     bju_br_pc_o,
+  output logic                      bju_upd_vld_o,
+  output logic                      bju_upd_mis_o,
+  output logic                      bju_upd_tkn_o,
+  output logic [`BR_TYPE_W-1:0]     bju_upd_type_o,
+  output logic [`CORE_XLEN-1:0]     bju_upd_src_pc_o,
+  output logic [`CORE_XLEN-1:0]     bju_upd_tgt_pc_o,
+  output logic [1:0]                bju_upd_sat_cnt_o,
+
   output logic                      bju_jal_rd_tkn_o,
   output logic [`CORE_XLEN-1:0]     bju_jal_rd_o
 );
@@ -57,6 +67,28 @@ module k423_ex_bju (
     .sum  ( adder_rd_res ),
     .cout (              )
   );
+
+  // ---------------------------------------------------------------------------
+  // Adder3: Branch prediction miss
+  //         pc = pc + 4
+  // ---------------------------------------------------------------------------
+  wire [`CORE_XLEN-1:0] adder_mis_res;
+  
+`ifdef BPU_EN
+
+  utils_adder32  u_adder_bju_mis (
+    .a    ( pc_i          ),
+    .b    ( 32'd4         ),
+    .cin  ( 1'b0          ),
+    .sum  ( adder_mis_res ),
+    .cout (               )
+  );
+  
+`else
+
+  assign adder_mis_res = '0;
+
+`endif
   
   // ---------------------------------------------------------------------------
   // Branch
@@ -69,15 +101,64 @@ module k423_ex_bju (
   wire cmp_rs1eqop2   =  ~(|adder_cmp_res);
 
   // branch taken
-  wire br_bxx_tkn = dec_info_i[`INST_INFO_BJU_BEQ] &  cmp_rs1eqop2   |
-                    dec_info_i[`INST_INFO_BJU_BNE] & ~cmp_rs1eqop2   |
-                    dec_info_i[`INST_INFO_BJU_BLT] &  cmp_rs1smaller |
-                    dec_info_i[`INST_INFO_BJU_BGE] & (cmp_rs2smaller | cmp_rs1eqop2);
-  assign bju_br_tkn_o = dec_grp_i[`INST_GRP_BJU] & (dec_info_i[`INST_INFO_BJU_BXX] & br_bxx_tkn |
-                                                    dec_info_i[`INST_INFO_BJU_JAL]              |
-                                                    dec_info_i[`INST_INFO_BJU_JALR]);
+  wire br_bxx_tkn =  dec_info_i[`INST_INFO_BJU_BEQ] &  cmp_rs1eqop2   |
+                     dec_info_i[`INST_INFO_BJU_BNE] & ~cmp_rs1eqop2   |
+                     dec_info_i[`INST_INFO_BJU_BLT] &  cmp_rs1smaller |
+                     dec_info_i[`INST_INFO_BJU_BGE] & (cmp_rs2smaller | cmp_rs1eqop2);
+  wire bju_br_tkn = (dec_info_i[`INST_INFO_BJU_BXX] & br_bxx_tkn |
+                     dec_info_i[`INST_INFO_BJU_JAL]              |
+                     dec_info_i[`INST_INFO_BJU_JALR]);
+  // branch type
+  wire [`BR_TYPE_W-1:0]   bju_br_type = {dec_info_i[`INST_INFO_BJU_RET], dec_info_i[`INST_INFO_BJU_CALL]};
   // branch pc
-  assign bju_br_pc_o  = dec_info_i[`INST_INFO_BJU_BXX] ? adder_rd_res : (adder_cmp_res & ~32'd1);
+  wire [`CORE_ADDR_W-1:0] bju_br_pc   = dec_info_i[`INST_INFO_BJU_BXX] ? adder_rd_res : (adder_cmp_res & ~32'd1);
+  wire [`CORE_ADDR_W-1:0] bju_mis_pc  = adder_mis_res;
+  
+`ifdef BPU_EN
+
+  // update
+  always @(*) begin
+    bju_upd_sat_cnt_o = bpu_prd_sat_cnt_i;
+
+    if (bpu_prd_sat_cnt_i == `PHT_NTKN_STRONG) begin
+      if (bju_br_tkn) begin
+        bju_upd_sat_cnt_o = `PHT_NTKN_WEAK;
+      end else begin
+        bju_upd_sat_cnt_o = `PHT_NTKN_STRONG;
+      end
+    end else if (bpu_prd_sat_cnt_i == `PHT_NTKN_WEAK) begin
+      if (bju_br_tkn) begin
+        bju_upd_sat_cnt_o = `PHT_TKN_WEAK;
+      end else begin
+        bju_upd_sat_cnt_o = `PHT_NTKN_WEAK;
+      end
+    end else if (bpu_prd_sat_cnt_i == `PHT_TKN_WEAK) begin
+      if (bju_br_tkn) begin
+        bju_upd_sat_cnt_o = `PHT_TKN_STRONG;
+      end else begin
+        bju_upd_sat_cnt_o = `PHT_NTKN_WEAK;
+      end
+    end else if (bpu_prd_sat_cnt_i == `PHT_TKN_STRONG) begin
+      if (bju_br_tkn) begin
+        bju_upd_sat_cnt_o = `PHT_TKN_WEAK;
+      end else begin
+        bju_upd_sat_cnt_o = `PHT_TKN_STRONG;
+      end
+    end
+  end
+  
+`else
+
+  assign bju_upd_sat_cnt_o = '0;
+
+`endif
+
+  assign bju_upd_vld_o    = dec_grp_i[`INST_GRP_BJU];
+  assign bju_upd_mis_o    = dec_grp_i[`INST_GRP_BJU] & ((bju_br_tkn != bpu_prd_tkn_i) | (bju_br_tkn & (bju_br_pc != bpu_prd_pc_i)));
+  assign bju_upd_tkn_o    = bju_br_tkn;
+  assign bju_upd_type_o   = bju_br_type;
+  assign bju_upd_tgt_pc_o = bju_br_tkn ? bju_br_pc : bju_mis_pc;
+  assign bju_upd_src_pc_o = pc_i;
   
   assign bju_jal_rd_tkn_o = dec_grp_i[`INST_GRP_BJU] & (dec_info_i[`INST_INFO_BJU_JAL] | dec_info_i[`INST_INFO_BJU_JALR]);
   assign bju_jal_rd_o     = adder_rd_res;

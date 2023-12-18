@@ -28,8 +28,13 @@ module k423_pipe_ex_wb (
   input  logic [`CORE_ADDR_W-1:0]   ex_rd_load_addr_i,
   input  logic                      ex_excp_br_tkn_i,
   input  logic [`CORE_XLEN-1:0]     ex_excp_br_pc_i,
-  input  logic                      ex_bju_br_tkn_i,
-  input  logic [`CORE_XLEN-1:0]     ex_bju_br_pc_i,
+  input  logic                      ex_bju_upd_vld_i,
+  input  logic                      ex_bju_upd_mis_i,
+  input  logic                      ex_bju_upd_tkn_i,
+  input  logic [`BR_TYPE_W-1:0]     ex_bju_upd_type_i,
+  input  logic [`CORE_XLEN-1:0]     ex_bju_upd_src_pc_i,
+  input  logic [`CORE_XLEN-1:0]     ex_bju_upd_tgt_pc_i,
+  input  logic [1:0]                ex_bju_upd_sat_cnt_i,
   // wb stage
   output logic [`CORE_ADDR_W-1:0]   wb_pc_o,
   output logic                      wb_rd_vld_o,
@@ -41,8 +46,13 @@ module k423_pipe_ex_wb (
   output logic [`CORE_ADDR_W-1:0]   wb_rd_load_addr_o,
   output logic                      wb_excp_br_tkn_o,
   output logic [`CORE_XLEN-1:0]     wb_excp_br_pc_o,
-  output logic                      wb_bju_br_tkn_o,
-  output logic [`CORE_XLEN-1:0]     wb_bju_br_pc_o
+  output logic                      wb_bju_upd_vld_o,
+  output logic                      wb_bju_upd_mis_o,
+  output logic                      wb_bju_upd_tkn_o,
+  output logic [`BR_TYPE_W-1:0]     wb_bju_upd_type_o,
+  output logic [`CORE_XLEN-1:0]     wb_bju_upd_src_pc_o,
+  output logic [`CORE_XLEN-1:0]     wb_bju_upd_tgt_pc_o,
+  output logic [1:0]                wb_bju_upd_sat_cnt_o
 );
   always @(posedge clk_i or negedge rst_n_i) begin
     if (!rst_n_i)
@@ -65,8 +75,13 @@ module k423_pipe_ex_wb (
       wb_rd_load_addr_o     <= '0;
       wb_excp_br_tkn_o      <= '0;
       wb_excp_br_pc_o       <= '0;
-      wb_bju_br_tkn_o       <= '0;
-      wb_bju_br_pc_o        <= '0;
+      wb_bju_upd_vld_o      <= '0;
+      wb_bju_upd_mis_o      <= '0;
+      wb_bju_upd_tkn_o      <= '0;
+      wb_bju_upd_type_o     <= '0;
+      wb_bju_upd_src_pc_o   <= '0;
+      wb_bju_upd_tgt_pc_o   <= '0;
+      wb_bju_upd_sat_cnt_o  <= '0;
     end else if (pcu_clear_ex_wb_i) begin
       wb_pc_o               <= '0;
       wb_rd_vld_o           <= '0;
@@ -78,8 +93,13 @@ module k423_pipe_ex_wb (
       wb_rd_load_addr_o     <= '0;
       wb_excp_br_tkn_o      <= '0;
       wb_excp_br_pc_o       <= '0;
-      wb_bju_br_tkn_o       <= '0;
-      wb_bju_br_pc_o        <= '0;
+      wb_bju_upd_vld_o      <= '0;
+      wb_bju_upd_mis_o      <= '0;
+      wb_bju_upd_tkn_o      <= '0;
+      wb_bju_upd_type_o     <= '0;
+      wb_bju_upd_src_pc_o   <= '0;
+      wb_bju_upd_tgt_pc_o   <= '0;
+      wb_bju_upd_sat_cnt_o  <= '0;
     end else if (pcu_stall_ex_wb_i) begin
       wb_pc_o               <= wb_pc_o;
       wb_rd_vld_o           <= wb_rd_vld_o;
@@ -91,8 +111,13 @@ module k423_pipe_ex_wb (
       wb_rd_load_addr_o     <= wb_rd_load_addr_o;
       wb_excp_br_tkn_o      <= wb_excp_br_tkn_o;
       wb_excp_br_pc_o       <= wb_excp_br_pc_o;
-      wb_bju_br_tkn_o       <= wb_bju_br_tkn_o;
-      wb_bju_br_pc_o        <= wb_bju_br_pc_o;
+      wb_bju_upd_vld_o      <= wb_bju_upd_vld_o;
+      wb_bju_upd_mis_o      <= wb_bju_upd_mis_o;
+      wb_bju_upd_tkn_o      <= wb_bju_upd_tkn_o;
+      wb_bju_upd_type_o     <= wb_bju_upd_type_o;
+      wb_bju_upd_src_pc_o   <= wb_bju_upd_src_pc_o;
+      wb_bju_upd_tgt_pc_o   <= wb_bju_upd_tgt_pc_o;
+      wb_bju_upd_sat_cnt_o  <= wb_bju_upd_sat_cnt_o;
     end else if (ex_stage_vld_i & wb_stage_rdy_i) begin
       wb_pc_o               <= ex_pc_i;
       wb_rd_vld_o           <= ex_rd_vld_i;
@@ -104,8 +129,13 @@ module k423_pipe_ex_wb (
       wb_rd_load_addr_o     <= ex_rd_load_addr_i;
       wb_excp_br_tkn_o      <= ex_excp_br_tkn_i;
       wb_excp_br_pc_o       <= ex_excp_br_pc_i;
-      wb_bju_br_tkn_o       <= ex_bju_br_tkn_i;
-      wb_bju_br_pc_o        <= ex_bju_br_pc_i;
+      wb_bju_upd_vld_o      <= ex_bju_upd_vld_i;
+      wb_bju_upd_mis_o      <= ex_bju_upd_mis_i;
+      wb_bju_upd_tkn_o      <= ex_bju_upd_tkn_i;
+      wb_bju_upd_type_o     <= ex_bju_upd_type_i;
+      wb_bju_upd_src_pc_o   <= ex_bju_upd_src_pc_i;
+      wb_bju_upd_tgt_pc_o   <= ex_bju_upd_tgt_pc_i;
+      wb_bju_upd_sat_cnt_o  <= ex_bju_upd_sat_cnt_i;
     end
   end
   

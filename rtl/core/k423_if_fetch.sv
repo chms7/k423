@@ -19,8 +19,10 @@ module k423_if_fetch (
   // branch
   input logic                      wb_excp_br_tkn_i,
   input logic [`CORE_XLEN-1:0]     wb_excp_br_pc_i,
-  input logic                      wb_bju_br_tkn_i,
+  input logic                      wb_bju_br_mis_i,
   input logic [`CORE_XLEN-1:0]     wb_bju_br_pc_i,
+  input logic                      if_bpu_br_tkn_i,
+  input logic [`CORE_XLEN-1:0]     if_bpu_br_pc_i,
   // inst mem request
   output logic                     if_mem_req_vld_o,
   output logic                     if_mem_req_wen_o,
@@ -48,9 +50,11 @@ module k423_if_fetch (
                                                 
     .excp_br_tkn_i        ( wb_excp_br_tkn_i    ),
     .excp_br_pc_i         ( wb_excp_br_pc_i     ),
-    .bju_br_tkn_i         ( wb_bju_br_tkn_i     ),
+    .bju_br_mis_i         ( wb_bju_br_mis_i     ),
     .bju_br_pc_i          ( wb_bju_br_pc_i      ),
-                                                
+    .bpu_br_tkn_i         ( if_bpu_br_tkn_i     ),
+    .bpu_br_pc_i          ( if_bpu_br_pc_i      ),
+
     .pc_o                 ( pc                  ),
     .next_pc_o            ( next_pc             )
   );

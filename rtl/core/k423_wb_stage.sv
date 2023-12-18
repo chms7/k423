@@ -20,14 +20,19 @@ module k423_wb_stage (
   input  logic [`INST_RSDIDX_W-1:0] ex_rd_idx_i,
   input  logic [`CORE_XLEN-1:0]     ex_rd_i,
   input  logic                      ex_rd_load_i,
-  input  logic [`LS_SIZE_W-1:0]    ex_rd_load_size_i,
+  input  logic [`LS_SIZE_W-1:0]     ex_rd_load_size_i,
   input  logic                      ex_rd_load_unsigned_i,
   input  logic [`CORE_ADDR_W-1:0]   ex_rd_load_addr_i,
 
   input  logic                      ex_excp_br_tkn_i,
   input  logic [`CORE_XLEN-1:0]     ex_excp_br_pc_i,
-  input  logic                      ex_bju_br_tkn_i,
-  input  logic [`CORE_XLEN-1:0]     ex_bju_br_pc_i,
+  input  logic                      ex_bju_upd_vld_i,
+  input  logic                      ex_bju_upd_mis_i,
+  input  logic                      ex_bju_upd_tkn_i,
+  input  logic [`BR_TYPE_W-1:0]     ex_bju_upd_type_i,
+  input  logic [`CORE_XLEN-1:0]     ex_bju_upd_src_pc_i,
+  input  logic [`CORE_XLEN-1:0]     ex_bju_upd_tgt_pc_i,
+  input  logic [1:0]                ex_bju_upd_sat_cnt_i,
   // memory response
   input  logic                      mem_data_rsp_vld_i,
   input  logic [`CORE_FETCH_W-1:0]  mem_data_rsp_rdata_i,
@@ -39,8 +44,13 @@ module k423_wb_stage (
 
   output logic                      wb_excp_br_tkn_o,
   output logic [`CORE_XLEN-1:0]     wb_excp_br_pc_o,
-  output logic                      wb_bju_br_tkn_o,
-  output logic [`CORE_XLEN-1:0]     wb_bju_br_pc_o
+  output logic                      wb_bju_upd_vld_o,
+  output logic                      wb_bju_upd_mis_o,
+  output logic                      wb_bju_upd_tkn_o,
+  output logic [`BR_TYPE_W-1:0]     wb_bju_upd_type_o,
+  output logic [`CORE_XLEN-1:0]     wb_bju_upd_src_pc_o,
+  output logic [`CORE_XLEN-1:0]     wb_bju_upd_tgt_pc_o,
+  output logic [1:0]                wb_bju_upd_sat_cnt_o
 );
   // ---------------------------------------------------------------------------
   // Rd Select
@@ -81,8 +91,14 @@ module k423_wb_stage (
   // ---------------------------------------------------------------------------
   assign wb_excp_br_tkn_o = ex_excp_br_tkn_i;
   assign wb_excp_br_pc_o  = ex_excp_br_pc_i;
-  assign wb_bju_br_tkn_o  = ex_bju_br_tkn_i;
-  assign wb_bju_br_pc_o   = ex_bju_br_pc_i;
+
+  assign wb_bju_upd_vld_o     = ex_bju_upd_vld_i;
+  assign wb_bju_upd_mis_o     = ex_bju_upd_mis_i;
+  assign wb_bju_upd_tkn_o     = ex_bju_upd_tkn_i;
+  assign wb_bju_upd_type_o    = ex_bju_upd_type_i;
+  assign wb_bju_upd_src_pc_o  = ex_bju_upd_src_pc_i;
+  assign wb_bju_upd_tgt_pc_o  = ex_bju_upd_tgt_pc_i;
+  assign wb_bju_upd_sat_cnt_o = ex_bju_upd_sat_cnt_i;
 
   // ---------------------------------------------------------------------------
   // Pipeline Handshake
